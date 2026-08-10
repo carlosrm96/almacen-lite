@@ -82,6 +82,30 @@ class AuditLogTest extends TestCase
             ->assertJsonPath('data.0.accion', 'producto.actualizado');
     }
 
+    public function test_el_filtro_por_user_id_es_exacto_y_no_por_subcadena(): void
+    {
+        $admin = $this->actingAsRole('admin');
+        $warehouse = Warehouse::factory()->create();
+
+        // Creamos usuarios de relleno hasta obtener uno cuyo id contenga el
+        // del admin como subcadena (p. ej. admin=1, otro=11): con un filtro
+        // LIKE '%1%' (AllowedFilter::partial, el que aplica spatie a un
+        // filtro declarado como string suelto) el 11 colaría también.
+        User::factory()->count(9)->create();
+        $otro = User::factory()->create();
+
+        $this->assertNotSame($admin->id, $otro->id);
+        $this->assertStringContainsString((string) $admin->id, (string) $otro->id);
+
+        app(AuditLogger::class)->log($admin, AuditLogger::ACCION_PRODUCTO_CREADO, $warehouse);
+        app(AuditLogger::class)->log($otro, AuditLogger::ACCION_PRODUCTO_ACTUALIZADO, $warehouse);
+
+        $this->getJson("/v1/audit-logs?filter[user_id]={$admin->id}")
+            ->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.user_id', $admin->id);
+    }
+
     public function test_el_vendedor_no_puede_ver_la_auditoria(): void
     {
         $this->actingAsRole('vendedor', ['warehouse_id' => Warehouse::factory()->create()->id]);

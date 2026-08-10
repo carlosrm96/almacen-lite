@@ -27,13 +27,15 @@ class AuditLogController extends Controller
         $logs = QueryBuilder::for(AuditLog::class)
             ->with('user')
             ->allowedFilters(
-                'user_id',
-                'accion',
-                'auditable_id',
+                // `exact`, no el `partial` que spatie aplica a un filtro declarado como
+                // string suelto: con LIKE '%1%' el usuario 1 arrastraría al 10, 11, 21...
+                AllowedFilter::exact('user_id'),
+                AllowedFilter::exact('accion'),
+                AllowedFilter::exact('auditable_id'),
                 AllowedFilter::callback('desde', fn (Builder $q, $value) => $q->where('created_at', '>=', $value)),
                 AllowedFilter::callback('hasta', fn (Builder $q, $value) => $q->where('created_at', '<=', $value)),
             )
-            ->defaultSort('-created_at')
+            ->defaultSort('-created_at', '-id')
             ->allowedSorts('created_at')
             ->paginate()
             ->appends(request()->query());

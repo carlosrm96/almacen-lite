@@ -28,7 +28,7 @@ class WarehouseController extends Controller
         $this->authorize('viewAny', Warehouse::class);
 
         $warehouses = QueryBuilder::for(Warehouse::class)
-            ->allowedFilters(AllowedFilter::partial('nombre'), 'activo')
+            ->allowedFilters(AllowedFilter::partial('nombre'), AllowedFilter::exact('activo'))
             ->allowedSorts('nombre', 'created_at')
             ->paginate()
             ->appends(request()->query());

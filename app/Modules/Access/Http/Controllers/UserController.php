@@ -28,7 +28,7 @@ class UserController extends Controller
         $this->authorize('viewAny', User::class);
 
         $users = QueryBuilder::for(User::class)
-            ->allowedFilters(AllowedFilter::partial('name'), AllowedFilter::partial('email'), 'warehouse_id')
+            ->allowedFilters(AllowedFilter::partial('name'), AllowedFilter::partial('email'), AllowedFilter::exact('warehouse_id'))
             ->allowedSorts('name', 'created_at')
             ->paginate()
             ->appends(request()->query());
