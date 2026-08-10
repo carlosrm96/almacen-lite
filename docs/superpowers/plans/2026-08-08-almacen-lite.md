@@ -18,7 +18,10 @@
 - **Tipos decimales:** cantidades `decimal(14,3)`, precios e importes `decimal(12,2)`. En PHP se manejan como `float` y se comparan en los tests con `assertEqualsWithDelta(..., 0.001)` o comparando el string devuelto por la API.
 - **Respuestas:** siempre API Resources, nunca modelos crudos. Colecciones paginadas con `spatie/laravel-query-builder`.
 - **Validación:** siempre en Form Requests, nunca en el controlador.
-- **Autorización:** siempre `$this->authorize(...)` en el controlador contra una Policy; los Form Requests devuelven `true` en `authorize()` salvo que se indique lo contrario.
+- **Autorización — dos capas, en este orden:**
+  1. El `authorize()` del Form Request comprueba el **permiso** (`return $this->user()?->can('<permiso>') ?? false;`). Laravel resuelve y valida el Form Request *antes* de ejecutar el cuerpo del controlador, así que esta es la única capa que puede devolver **403 en vez de 422** cuando un usuario sin permiso manda un payload inválido. `LoginRequest` es la excepción: devuelve `true`, porque el login no está autenticado.
+  2. El controlador mantiene `$this->authorize(...)` contra la **Policy** como comprobación sobre el modelo concreto (p. ej. que un vendedor no vea una venta de otro almacén, o que un admin no se borre a sí mismo). Es la capa que protege también a las rutas sin Form Request (`index`, `show`, `destroy`).
+  La duplicación entre ambas es intencionada: la Policy sigue siendo la fuente de verdad y el Form Request solo adelanta el veredicto de permiso.
 - **Permisos** (fuente única: `RolesAndPermissionsSeeder`):
   - `admin`: `users.view|create|update|delete`, `warehouses.view|create|update|delete`, `units.view|create|update|delete`, `products.view|create|update|delete`, `stock.set`, `transfers.view`, `transfers.create`, `sales.view`, `sales.create`, `metrics.view`, `metrics.full`, `audit.view`
   - `vendedor`: `products.view`, `sales.view`, `sales.create`, `metrics.view`
@@ -967,7 +970,7 @@ class StoreWarehouseRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return true;
+        return $this->user()?->can('warehouses.create') ?? false;
     }
 
     /**
@@ -997,7 +1000,7 @@ class UpdateWarehouseRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return true;
+        return $this->user()?->can('warehouses.update') ?? false;
     }
 
     /**
@@ -1293,8 +1296,12 @@ php artisan make:migration add_warehouse_id_to_users_table --no-interaction
 
 ```php
         Schema::table('users', function (Blueprint $table): void {
+            // `restrictOnDelete`, no `nullOnDelete`: anular el almacén al borrarlo
+            // dejaría vendedores sin almacén en silencio, rompiendo el invariante
+            // de §5. La guarda amable (422) la pone `WarehouseController::destroy()`
+            // en la Task 8; esto es la red de seguridad a nivel de base de datos.
             $table->foreignId('warehouse_id')->nullable()->after('email')
-                ->constrained('warehouses')->nullOnDelete();
+                ->constrained('warehouses')->restrictOnDelete();
         });
 ```
 
@@ -1329,7 +1336,7 @@ class StoreUserRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return true;
+        return $this->user()?->can('users.create') ?? false;
     }
 
     /**
@@ -1378,7 +1385,7 @@ class UpdateUserRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return true;
+        return $this->user()?->can('users.update') ?? false;
     }
 
     /**
@@ -2269,7 +2276,7 @@ class StoreUnitRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return true;
+        return $this->user()?->can('units.create') ?? false;
     }
 
     /**
@@ -2299,7 +2306,7 @@ class UpdateUnitRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return true;
+        return $this->user()?->can('units.update') ?? false;
     }
 
     /**
@@ -3011,7 +3018,7 @@ class StoreProductRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return true;
+        return $this->user()?->can('products.create') ?? false;
     }
 
     /**
@@ -3056,7 +3063,7 @@ class UpdateProductRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return true;
+        return $this->user()?->can('products.update') ?? false;
     }
 
     /**
@@ -3087,7 +3094,7 @@ class StoreProductUnitRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return true;
+        return $this->user()?->can('products.update') ?? false;
     }
 
     /**
@@ -3811,7 +3818,7 @@ class SetStockRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return true;
+        return $this->user()?->can('stock.set') ?? false;
     }
 
     /**
@@ -4727,7 +4734,7 @@ class StoreSaleRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return true;
+        return $this->user()?->can('sales.create') ?? false;
     }
 
     /**
@@ -5339,7 +5346,7 @@ class StoreTransferRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return true;
+        return $this->user()?->can('transfers.create') ?? false;
     }
 
     /**
@@ -5927,7 +5934,7 @@ class SalesMetricsRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return true;
+        return $this->user()?->can('metrics.view') ?? false;
     }
 
     /**
@@ -6767,7 +6774,7 @@ class InventoryMetricsRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return true;
+        return $this->user()?->can('metrics.full') ?? false;
     }
 
     /**
