@@ -59,6 +59,8 @@ class UnitManagementTest extends TestCase
 
         $this->getJson('/v1/units')->assertForbidden();
         $this->postJson('/v1/units', ['nombre' => 'x', 'factor' => 2])->assertForbidden();
+        $this->getJson("/v1/units/{$unit->id}")->assertForbidden();
+        $this->putJson("/v1/units/{$unit->id}", ['factor' => 3])->assertForbidden();
         $this->deleteJson("/v1/units/{$unit->id}")->assertForbidden();
     }
 }
