@@ -4585,12 +4585,16 @@ class SaleFactory extends Factory
 
 namespace App\Modules\Warehouses\Exceptions;
 
+use Illuminate\Contracts\Debug\ShouldntReport;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use RuntimeException;
 use Symfony\Component\HttpFoundation\Response;
 
-class InsufficientStockException extends RuntimeException
+// `ShouldntReport`: quedarse sin stock es un desenlace normal del negocio, no
+// un error de la aplicación; sin esto cada 422 escribe un stack trace y entierra
+// los incidentes de verdad.
+class InsufficientStockException extends RuntimeException implements ShouldntReport
 {
     /**
      * @param  list<array{product_id: int, nombre: string, solicitado: string, disponible: string}>  $faltantes
@@ -4655,7 +4659,7 @@ class RegisterSale
     public function handle(User $user, int $warehouseId, array $items): Sale
     {
         return DB::transaction(function () use ($user, $warehouseId, $items): Sale {
-            $products = Product::with('units')
+            $products = Product::with('units.unit')
                 ->whereIn('id', array_column($items, 'product_id'))
                 ->get()
                 ->keyBy('id');
@@ -4670,7 +4674,9 @@ class RegisterSale
                 $product = $products[$item['product_id']];
                 $unit = isset($item['unit_id'])
                     ? $units[$item['unit_id']]
-                    : $product->units->firstWhere('is_base', true)->unit()->first();
+                    // Propiedad, no método: `->unit()->first()` sería una consulta
+                    // por línea dentro de la transacción con los locks abiertos.
+                    : $product->units->firstWhere('is_base', true)->unit;
 
                 $cantidadBase = $product->toBase((float) $item['cantidad'], $unit);
 
@@ -4779,7 +4785,9 @@ class StoreSaleRequest extends FormRequest
             // lógico: hay que excluir los eliminados a mano.
             'items.*.product_id' => ['required', 'integer', Rule::exists('products', 'id')->whereNull('deleted_at')],
             'items.*.unit_id' => ['nullable', 'integer', 'exists:units,id'],
-            'items.*.cantidad' => ['required', 'numeric', 'gt:0'],
+            // `min:0.001`: las cantidades son decimal(14,3), así que por debajo de
+            // eso no hay nada que descontar y sí un camino a stock inexistente.
+            'items.*.cantidad' => ['required', 'numeric', 'min:0.001'],
         ];
     }
 
@@ -5309,11 +5317,11 @@ class TransferStock
         ?int $unitId = null,
     ): Transfer {
         return DB::transaction(function () use ($user, $productId, $fromWarehouseId, $toWarehouseId, $cantidad, $unitId): Transfer {
-            $product = Product::with('units')->findOrFail($productId);
+            $product = Product::with('units.unit')->findOrFail($productId);
 
             $unit = $unitId !== null
                 ? Unit::findOrFail($unitId)
-                : $product->units->firstWhere('is_base', true)->unit()->first();
+                : $product->units->firstWhere('is_base', true)->unit;
 
             $cantidadBase = $product->toBase($cantidad, $unit);
 
@@ -5392,7 +5400,7 @@ class StoreTransferRequest extends FormRequest
             'from_warehouse_id' => ['required', 'integer', 'exists:warehouses,id'],
             'to_warehouse_id' => ['required', 'integer', 'exists:warehouses,id', 'different:from_warehouse_id'],
             'unit_id' => ['nullable', 'integer', 'exists:units,id'],
-            'cantidad' => ['required', 'numeric', 'gt:0'],
+            'cantidad' => ['required', 'numeric', 'min:0.001'],
         ];
     }
 
