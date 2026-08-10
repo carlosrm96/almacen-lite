@@ -1078,7 +1078,7 @@ class WarehouseController extends Controller
         $this->authorize('viewAny', Warehouse::class);
 
         $warehouses = QueryBuilder::for(Warehouse::class)
-            ->allowedFilters(AllowedFilter::partial('nombre'), 'activo')
+            ->allowedFilters(AllowedFilter::partial('nombre'), AllowedFilter::exact('activo'))
             ->allowedSorts('nombre', 'created_at')
             ->paginate()
             ->appends(request()->query());
@@ -1495,7 +1495,7 @@ class UserController extends Controller
         $this->authorize('viewAny', User::class);
 
         $users = QueryBuilder::for(User::class)
-            ->allowedFilters(AllowedFilter::partial('name'), AllowedFilter::partial('email'), 'warehouse_id')
+            ->allowedFilters(AllowedFilter::partial('name'), AllowedFilter::partial('email'), AllowedFilter::exact('warehouse_id'))
             ->allowedSorts('name', 'created_at')
             ->paginate()
             ->appends(request()->query());
@@ -1958,13 +1958,15 @@ class AuditLogController extends Controller
         $logs = QueryBuilder::for(AuditLog::class)
             ->with('user')
             ->allowedFilters(
-                'user_id',
-                'accion',
-                'auditable_id',
+                // `exact`, no el `partial` que spatie aplica a un filtro declarado como
+                // string suelto: con LIKE '%1%' el usuario 1 arrastraría al 10, 11, 21...
+                AllowedFilter::exact('user_id'),
+                AllowedFilter::exact('accion'),
+                AllowedFilter::exact('auditable_id'),
                 AllowedFilter::callback('desde', fn (Builder $q, $value) => $q->where('created_at', '>=', $value)),
                 AllowedFilter::callback('hasta', fn (Builder $q, $value) => $q->where('created_at', '<=', $value)),
             )
-            ->defaultSort('-created_at')
+            ->defaultSort('-created_at', '-id')
             ->allowedSorts('created_at')
             ->paginate()
             ->appends(request()->query());
@@ -4897,6 +4899,7 @@ use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Http\Response;
+use Spatie\QueryBuilder\AllowedFilter;
 use Spatie\QueryBuilder\QueryBuilder;
 
 /**
@@ -4917,8 +4920,8 @@ class SaleController extends Controller
         $sales = QueryBuilder::for(Sale::class)
             ->with('items.product', 'items.unit')
             ->when($user->isVendedor(), fn ($q) => $q->where('warehouse_id', $user->warehouse_id))
-            ->allowedFilters('warehouse_id', 'user_id')
-            ->defaultSort('-created_at')
+            ->allowedFilters(AllowedFilter::exact('warehouse_id'), AllowedFilter::exact('user_id'))
+            ->defaultSort('-created_at', '-id')
             ->allowedSorts('created_at', 'total')
             ->paginate()
             ->appends(request()->query());
@@ -5453,6 +5456,7 @@ use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Http\Response;
+use Spatie\QueryBuilder\AllowedFilter;
 use Spatie\QueryBuilder\QueryBuilder;
 
 /**
@@ -5470,8 +5474,13 @@ class TransferController extends Controller
 
         $transfers = QueryBuilder::for(Transfer::class)
             ->with('product')
-            ->allowedFilters('product_id', 'from_warehouse_id', 'to_warehouse_id', 'user_id')
-            ->defaultSort('-created_at')
+            ->allowedFilters(
+                AllowedFilter::exact('product_id'),
+                AllowedFilter::exact('from_warehouse_id'),
+                AllowedFilter::exact('to_warehouse_id'),
+                AllowedFilter::exact('user_id'),
+            )
+            ->defaultSort('-created_at', '-id')
             ->allowedSorts('created_at')
             ->paginate()
             ->appends(request()->query());
