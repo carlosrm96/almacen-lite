@@ -48,13 +48,6 @@ class AuthController extends Controller
     {
         auth()->user()->currentAccessToken()->delete();
 
-        // Olvida el usuario cacheado en el guard: sin esto, dentro del mismo
-        // ciclo de proceso (p. ej. en tests que encadenan peticiones) el guard
-        // de Sanctum seguiría devolviendo el usuario ya autenticado aunque su
-        // token acabe de ser revocado, porque RequestGuard cachea el usuario
-        // resuelto en la primera llamada a user() y no lo recalcula.
-        auth()->guard()->forgetUser();
-
         return response()->noContent();
     }
 
