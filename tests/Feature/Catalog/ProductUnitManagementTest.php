@@ -83,6 +83,19 @@ class ProductUnitManagementTest extends TestCase
         $this->assertEqualsWithDelta(48.0, $product->fresh()->load('units')->toBase(2, $caja), 0.001);
     }
 
+    public function test_to_base_no_falla_por_una_cache_de_unidades_obsoleta(): void
+    {
+        $product = Product::factory()->create();
+        $product->load('units'); // caché poblada solo con la unidad base
+
+        $caja = Unit::factory()->create(['factor' => 24]);
+        $product->units()->create(['unit_id' => $caja->id, 'is_base' => false]);
+
+        // $product->units sigue en caché sin $caja, pero toBase() no debe
+        // lanzar: debe repetir la consulta al no encontrarla en memoria.
+        $this->assertEqualsWithDelta(48.0, $product->toBase(2, $caja), 0.001);
+    }
+
     public function test_convertir_con_una_unidad_no_asignada_lanza_excepcion(): void
     {
         $product = Product::factory()->create();

@@ -19,9 +19,14 @@ class UpdateProduct
         return DB::transaction(function () use ($user, $product, $datos): Product {
             $cambios = [];
 
+            // El formato se elige por el nombre del campo, no por `is_numeric` del
+            // valor: un producto llamado "1000" no es un precio y no debe quedar
+            // registrado como "1000.00".
+            $precios = ['precio_compra', 'precio_venta'];
+
             foreach ($datos as $campo => $nuevo) {
                 $antes = $product->getAttribute($campo);
-                $formatea = fn (mixed $v): string => is_float($v) || is_numeric($v)
+                $formatea = fn (mixed $v): string => in_array($campo, $precios, true)
                     ? number_format((float) $v, 2, '.', '')
                     : (string) $v;
 

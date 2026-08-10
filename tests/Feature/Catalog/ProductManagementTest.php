@@ -79,6 +79,18 @@ class ProductManagementTest extends TestCase
         $this->assertSame(['precio_venta' => ['antes' => '1.00', 'despues' => '1.50']], $log->datos);
     }
 
+    public function test_renombrar_a_un_nombre_numerico_no_se_confunde_con_un_precio(): void
+    {
+        $this->actingAsRole('admin');
+        $product = Product::factory()->create(['nombre' => 'Agua 1L']);
+
+        $this->putJson("/v1/products/{$product->id}", ['nombre' => '1000'])
+            ->assertOk()->assertJsonPath('data.nombre', '1000');
+
+        $log = AuditLog::where('accion', 'producto.actualizado')->firstOrFail();
+        $this->assertSame(['nombre' => ['antes' => 'Agua 1L', 'despues' => '1000']], $log->datos);
+    }
+
     public function test_el_borrado_es_logico_y_queda_auditado(): void
     {
         $admin = $this->actingAsRole('admin');
