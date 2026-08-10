@@ -4,6 +4,7 @@ namespace App\Modules\Warehouses\Http\Controllers;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Modules\Sales\Models\Sale;
 use App\Modules\Warehouses\Http\Requests\StoreWarehouseRequest;
 use App\Modules\Warehouses\Http\Requests\UpdateWarehouseRequest;
 use App\Modules\Warehouses\Http\Resources\WarehouseResource;
@@ -70,8 +71,9 @@ class WarehouseController extends Controller
 
         $tieneStock = Stock::where('warehouse_id', $warehouse->id)->where('cantidad', '>', 0)->exists();
         $tieneUsuarios = User::where('warehouse_id', $warehouse->id)->exists();
+        $tieneVentas = Sale::where('warehouse_id', $warehouse->id)->exists();
 
-        if ($tieneStock || $tieneUsuarios) {
+        if ($tieneStock || $tieneUsuarios || $tieneVentas) {
             throw ValidationException::withMessages([
                 'warehouse' => ['El almacén tiene stock o usuarios asignados. Desactívalo en lugar de borrarlo.'],
             ]);
