@@ -27,7 +27,10 @@ class StoreSaleRequest extends FormRequest
             // `exists` no respeta el borrado lógico; hay que excluirlo a mano.
             'items.*.product_id' => ['required', 'integer', Rule::exists('products', 'id')->whereNull('deleted_at')],
             'items.*.unit_id' => ['nullable', 'integer', 'exists:units,id'],
-            'items.*.cantidad' => ['required', 'numeric', 'gt:0'],
+            // Las columnas de cantidad son decimal(14,3): por debajo de 0.001 no
+            // hay nada representable, y admitir valores menores abriría una
+            // rendija entre la validación y el margen de tolerancia interno.
+            'items.*.cantidad' => ['required', 'numeric', 'min:0.001'],
         ];
     }
 

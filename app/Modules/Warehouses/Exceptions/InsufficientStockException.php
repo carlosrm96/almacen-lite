@@ -2,12 +2,13 @@
 
 namespace App\Modules\Warehouses\Exceptions;
 
+use Illuminate\Contracts\Debug\ShouldntReport;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use RuntimeException;
 use Symfony\Component\HttpFoundation\Response;
 
-class InsufficientStockException extends RuntimeException
+class InsufficientStockException extends RuntimeException implements ShouldntReport
 {
     /**
      * @param  list<array{product_id: int, nombre: string, solicitado: string, disponible: string}>  $faltantes

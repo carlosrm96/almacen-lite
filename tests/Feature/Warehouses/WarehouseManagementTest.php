@@ -2,6 +2,8 @@
 
 namespace Tests\Feature\Warehouses;
 
+use App\Modules\Catalog\Models\Product;
+use App\Modules\Warehouses\Models\Stock;
 use App\Modules\Warehouses\Models\Warehouse;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -60,5 +62,32 @@ class WarehouseManagementTest extends TestCase
     public function test_sin_token_no_se_accede(): void
     {
         $this->getJson('/v1/warehouses')->assertUnauthorized();
+    }
+
+    public function test_no_se_puede_borrar_un_almacen_que_solo_aparece_en_una_transferencia(): void
+    {
+        // Un almacén puede quedar sin stock (todo transferido fuera) y sin
+        // usuarios ni ventas, y aun así seguir referenciado por `transfers`
+        // como origen o destino (`restrictOnDelete` en ambas columnas). Antes
+        // de esta guarda, `$warehouse->delete()` llegaba a ejecutarse y la
+        // base de datos respondía con un 500 en vez de un 422 controlado.
+        $admin = $this->actingAsRole('admin');
+        $origen = Warehouse::factory()->create();
+        $destino = Warehouse::factory()->create();
+        $product = Product::factory()->create();
+        Stock::factory()->for($product)->for($origen)->create(['cantidad' => 100]);
+
+        $this->postJson('/v1/transfers', [
+            'product_id' => $product->id,
+            'from_warehouse_id' => $origen->id,
+            'to_warehouse_id' => $destino->id,
+            'cantidad' => 100,
+        ])->assertCreated();
+
+        // El origen queda con cantidad 0: `$tieneStock` (cantidad > 0) es falso.
+        $this->assertEqualsWithDelta(0.0, $product->cantidadEn($origen->id), 0.001);
+
+        $this->deleteJson("/v1/warehouses/{$origen->id}")->assertStatus(422);
+        $this->deleteJson("/v1/warehouses/{$destino->id}")->assertStatus(422);
     }
 }

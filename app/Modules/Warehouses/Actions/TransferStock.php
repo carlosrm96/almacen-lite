@@ -30,11 +30,14 @@ class TransferStock
         ?int $unitId = null,
     ): Transfer {
         return DB::transaction(function () use ($user, $productId, $fromWarehouseId, $toWarehouseId, $cantidad, $unitId): Transfer {
-            $product = Product::with('units')->findOrFail($productId);
+            // `units.unit` precarga también la unidad de cada ProductUnit, para
+            // no disparar una consulta `belongsTo` perezosa al resolver la
+            // unidad base cuando no se indica `unit_id`.
+            $product = Product::with('units.unit')->findOrFail($productId);
 
             $unit = $unitId !== null
                 ? Unit::findOrFail($unitId)
-                : $product->units->firstWhere('is_base', true)->unit()->first();
+                : $product->units->firstWhere('is_base', true)->unit;
 
             $cantidadBase = $product->toBase($cantidad, $unit);
 
@@ -45,7 +48,9 @@ class TransferStock
 
             $disponible = (float) ($origen->cantidad ?? 0);
 
-            if ($cantidadBase > $disponible + 0.0001) {
+            // Sin fila de stock en origen no hay nada que transferir: se trata
+            // como insuficiente en vez de desreferenciar un `null` al descontar.
+            if ($origen === null || $cantidadBase > $disponible + 0.0001) {
                 throw new InsufficientStockException([[
                     'product_id' => $productId,
                     'nombre' => $product->nombre,

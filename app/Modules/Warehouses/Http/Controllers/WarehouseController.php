@@ -9,6 +9,7 @@ use App\Modules\Warehouses\Http\Requests\StoreWarehouseRequest;
 use App\Modules\Warehouses\Http\Requests\UpdateWarehouseRequest;
 use App\Modules\Warehouses\Http\Resources\WarehouseResource;
 use App\Modules\Warehouses\Models\Stock;
+use App\Modules\Warehouses\Models\Transfer;
 use App\Modules\Warehouses\Models\Warehouse;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\JsonResponse;
@@ -72,10 +73,15 @@ class WarehouseController extends Controller
         $tieneStock = Stock::where('warehouse_id', $warehouse->id)->where('cantidad', '>', 0)->exists();
         $tieneUsuarios = User::where('warehouse_id', $warehouse->id)->exists();
         $tieneVentas = Sale::where('warehouse_id', $warehouse->id)->exists();
+        // Un almacén puede aparecer como origen o destino de una transferencia;
+        // ambos FK son restrictOnDelete, así que hay que cubrir los dos.
+        $tieneTransferencias = Transfer::where('from_warehouse_id', $warehouse->id)
+            ->orWhere('to_warehouse_id', $warehouse->id)
+            ->exists();
 
-        if ($tieneStock || $tieneUsuarios || $tieneVentas) {
+        if ($tieneStock || $tieneUsuarios || $tieneVentas || $tieneTransferencias) {
             throw ValidationException::withMessages([
-                'warehouse' => ['El almacén tiene stock o usuarios asignados. Desactívalo en lugar de borrarlo.'],
+                'warehouse' => ['El almacén tiene stock, usuarios, ventas o transferencias asociadas. Desactívalo en lugar de borrarlo.'],
             ]);
         }
 

@@ -3,6 +3,9 @@
 namespace Tests\Feature\Access;
 
 use App\Models\User;
+use App\Modules\Catalog\Models\Product;
+use App\Modules\Sales\Models\Sale;
+use App\Modules\Warehouses\Models\Transfer;
 use App\Modules\Warehouses\Models\Warehouse;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -109,5 +112,42 @@ class UserManagementTest extends TestCase
 
         $this->putJson("/v1/users/{$otro->id}", ['rol' => 'vendedor'])
             ->assertStatus(422)->assertJsonValidationErrors('warehouse_id');
+    }
+
+    public function test_no_se_puede_borrar_un_usuario_con_ventas(): void
+    {
+        $this->actingAsRole('admin');
+        $warehouse = Warehouse::factory()->create();
+        $vendedor = User::factory()->create(['warehouse_id' => $warehouse->id]);
+        $vendedor->assignRole('vendedor');
+        Sale::factory()->for($vendedor)->for($warehouse)->create();
+
+        // `sales.user_id` es restrictOnDelete: antes de esta guarda, borrar
+        // este usuario llegaba a la base de datos y respondía con un 500.
+        $this->deleteJson("/v1/users/{$vendedor->id}")->assertStatus(422);
+        $this->assertDatabaseHas('users', ['id' => $vendedor->id]);
+    }
+
+    public function test_no_se_puede_borrar_un_usuario_con_transferencias(): void
+    {
+        $this->actingAsRole('admin');
+        $otro = User::factory()->create();
+        $otro->assignRole('admin');
+
+        $origen = Warehouse::factory()->create();
+        $destino = Warehouse::factory()->create();
+        $product = Product::factory()->create();
+        Transfer::create([
+            'product_id' => $product->id,
+            'from_warehouse_id' => $origen->id,
+            'to_warehouse_id' => $destino->id,
+            'cantidad_base' => 10,
+            'user_id' => $otro->id,
+        ]);
+
+        // `transfers.user_id` es restrictOnDelete por la misma razón que
+        // `sales.user_id`: conservar la atribución histórica.
+        $this->deleteJson("/v1/users/{$otro->id}")->assertStatus(422);
+        $this->assertDatabaseHas('users', ['id' => $otro->id]);
     }
 }

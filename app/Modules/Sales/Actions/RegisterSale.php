@@ -25,7 +25,11 @@ class RegisterSale
     public function handle(User $user, int $warehouseId, array $items): Sale
     {
         return DB::transaction(function () use ($user, $warehouseId, $items): Sale {
-            $products = Product::with('units')
+            // `units.unit` precarga también la unidad de cada ProductUnit: sin
+            // eso, resolver la unidad base de una línea sin `unit_id` disparaba
+            // una consulta `belongsTo` perezosa por línea, dentro de la
+            // transacción que mantiene los locks de stock.
+            $products = Product::with('units.unit')
                 ->whereIn('id', array_column($items, 'product_id'))
                 ->get()
                 ->keyBy('id');
@@ -40,7 +44,7 @@ class RegisterSale
                 $product = $products[$item['product_id']];
                 $unit = isset($item['unit_id'])
                     ? $units[$item['unit_id']]
-                    : $product->units->firstWhere('is_base', true)->unit()->first();
+                    : $product->units->firstWhere('is_base', true)->unit;
 
                 $cantidadBase = $product->toBase((float) $item['cantidad'], $unit);
 
@@ -65,9 +69,13 @@ class RegisterSale
             $faltantes = [];
 
             foreach ($demandaPorProducto as $productId => $solicitado) {
-                $disponible = (float) ($stocks[$productId]->cantidad ?? 0);
+                $stock = $stocks[$productId] ?? null;
+                $disponible = (float) ($stock->cantidad ?? 0);
 
-                if ($solicitado > $disponible + 0.0001) {
+                // Sin fila de stock para el producto en este almacén no hay nada
+                // que descontar: se trata como insuficiente, nunca se llega a
+                // desreferenciar un `null` en el paso de escritura.
+                if ($stock === null || $solicitado > $disponible + 0.0001) {
                     $faltantes[] = [
                         'product_id' => (int) $productId,
                         'nombre' => $products[$productId]->nombre,
@@ -81,7 +89,7 @@ class RegisterSale
                 throw new InsufficientStockException($faltantes);
             }
 
-            // 4. Descontar.
+            // 4. Descontar. Todo lo que llega aquí ya tiene fila de stock (paso 3).
             foreach ($demandaPorProducto as $productId => $solicitado) {
                 $stocks[$productId]->decrement('cantidad', $solicitado);
             }

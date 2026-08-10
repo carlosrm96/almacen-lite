@@ -7,10 +7,13 @@ use App\Models\User;
 use App\Modules\Access\Http\Requests\StoreUserRequest;
 use App\Modules\Access\Http\Requests\UpdateUserRequest;
 use App\Modules\Access\Http\Resources\UserResource;
+use App\Modules\Sales\Models\Sale;
+use App\Modules\Warehouses\Models\Transfer;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Http\Response;
+use Illuminate\Validation\ValidationException;
 use Spatie\QueryBuilder\AllowedFilter;
 use Spatie\QueryBuilder\QueryBuilder;
 
@@ -69,6 +72,18 @@ class UserController extends Controller
     public function destroy(User $user): Response
     {
         $this->authorize('delete', $user);
+
+        // `sales.user_id` y `transfers.user_id` son restrictOnDelete para
+        // conservar la atribución histórica: no se hacen nullable, se bloquea
+        // el borrado en su lugar.
+        $tieneVentas = Sale::where('user_id', $user->id)->exists();
+        $tieneTransferencias = Transfer::where('user_id', $user->id)->exists();
+
+        if ($tieneVentas || $tieneTransferencias) {
+            throw ValidationException::withMessages([
+                'user' => ['El usuario tiene ventas o transferencias asociadas. No puede borrarse.'],
+            ]);
+        }
 
         $user->delete();
 
