@@ -23,11 +23,6 @@ class SetProductStock
                 ['cantidad' => 0, 'minimo' => 0],
             );
 
-            // Este endpoint siempre "fija" el stock, nunca lo "crea" desde el punto
-            // de vista de la API: forzamos wasRecentlyCreated=false para que el
-            // JsonResource no responda 201 cuando el registro no existía aún.
-            $stock->wasRecentlyCreated = false;
-
             $anterior = $stock->cantidad;
 
             $stock->cantidad = $cantidad;

@@ -41,6 +41,13 @@ class Product extends Model
 
     public function cantidadEn(int $warehouseId): float
     {
+        // Si la relación ya está cargada se busca ahí: el listado de productos la
+        // precarga y `paraVendedor()` llama a este método en cada fila, así que
+        // consultar aquí sería un N+1 sobre el camino más caliente de la API.
+        if ($this->relationLoaded('stocks')) {
+            return (float) ($this->stocks->firstWhere('warehouse_id', $warehouseId)?->cantidad ?? 0);
+        }
+
         return (float) ($this->stocks()->where('warehouse_id', $warehouseId)->value('cantidad') ?? 0);
     }
 

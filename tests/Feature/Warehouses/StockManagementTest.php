@@ -9,6 +9,7 @@ use App\Modules\Catalog\Models\Unit;
 use App\Modules\Warehouses\Models\Stock;
 use App\Modules\Warehouses\Models\Warehouse;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 class StockManagementTest extends TestCase
@@ -80,7 +81,9 @@ class StockManagementTest extends TestCase
             'base_unit_id' => $base->id,
             'warehouse_id' => $warehouse->id,
             'cantidad' => 200,
-        ])->assertCreated();
+        ])->assertCreated()
+            ->assertJsonPath('data.stocks.0.warehouse_id', $warehouse->id)
+            ->assertJsonPath('data.stocks.0.cantidad', '200.000');
 
         $product = Product::firstOrFail();
         $this->assertEqualsWithDelta(200.0, $product->cantidadEn($warehouse->id), 0.001);
@@ -112,6 +115,45 @@ class StockManagementTest extends TestCase
             ->assertJsonPath('data.0.cantidad', '7.000');
 
         $this->assertStringNotContainsString('999', $response->getContent());
+    }
+
+    public function test_el_listado_de_productos_no_incurre_en_n_mas_uno_al_calcular_la_cantidad_del_vendedor(): void
+    {
+        $warehouse = Warehouse::factory()->create();
+        $this->actingAsRole('vendedor', ['warehouse_id' => $warehouse->id]);
+
+        $unProducto = Product::factory()->create();
+        Stock::factory()->for($unProducto)->for($warehouse)->create(['cantidad' => 10]);
+
+        // Precalienta la caché de roles/permisos (Spatie) para que no distorsione
+        // el conteo: solo interesan las consultas del propio listado.
+        $this->getJson('/v1/products')->assertOk();
+
+        DB::enableQueryLog();
+        $this->getJson('/v1/products')->assertOk();
+        $consultasConUnProducto = count(DB::getQueryLog());
+        DB::flushQueryLog();
+
+        // Dos productos más, cada uno con su propio stock en el mismo almacén:
+        // si `cantidadEn()` consultara en vez de usar la relación precargada,
+        // el número de consultas crecería con el número de productos.
+        foreach (range(1, 2) as $i) {
+            $otro = Product::factory()->create();
+            Stock::factory()->for($otro)->for($warehouse)->create(['cantidad' => 5]);
+        }
+
+        // Se descartan las consultas de la propia preparación del fixture (los
+        // inserts de arriba): solo interesa contar las que dispara la petición.
+        DB::flushQueryLog();
+        $this->getJson('/v1/products')->assertOk();
+        $consultasConTresProductos = count(DB::getQueryLog());
+        DB::disableQueryLog();
+
+        $this->assertSame(
+            $consultasConUnProducto,
+            $consultasConTresProductos,
+            'El número de consultas en el listado no debe crecer con el número de productos.',
+        );
     }
 
     public function test_el_vendedor_no_puede_fijar_stock(): void

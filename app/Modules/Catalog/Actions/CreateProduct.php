@@ -38,6 +38,8 @@ class CreateProduct
                     $stockInicial['warehouse_id'],
                     $stockInicial['cantidad'],
                 );
+
+                return $product->load('units.unit', 'stocks');
             }
 
             return $product->load('units.unit');
