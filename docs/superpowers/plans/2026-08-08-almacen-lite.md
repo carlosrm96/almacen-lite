@@ -3758,6 +3758,13 @@ Relaciones en `Product`:
 
     public function cantidadEn(int $warehouseId): float
     {
+        // Si la relación ya está cargada se busca ahí: el listado de productos la
+        // precarga y `paraVendedor()` llama a este método en cada fila, así que
+        // consultar aquí sería un N+1 sobre el camino más caliente de la API.
+        if ($this->relationLoaded('stocks')) {
+            return (float) ($this->stocks->firstWhere('warehouse_id', $warehouseId)?->cantidad ?? 0);
+        }
+
         return (float) ($this->stocks()->where('warehouse_id', $warehouseId)->value('cantidad') ?? 0);
     }
 ```
@@ -3887,6 +3894,8 @@ use App\Modules\Warehouses\Actions\SetProductStock;
 use App\Modules\Warehouses\Http\Requests\SetStockRequest;
 use App\Modules\Warehouses\Http\Resources\StockResource;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Response;
 
 /**
  * @group Almacenes · Stock
@@ -3898,7 +3907,7 @@ class ProductStockController extends Controller
     use AuthorizesRequests;
 
     /** Fija la cantidad disponible del producto en un almacén. */
-    public function store(SetStockRequest $request, Product $product, SetProductStock $action): StockResource
+    public function store(SetStockRequest $request, Product $product, SetProductStock $action): JsonResponse
     {
         $this->authorize('setStock', $product);
 
@@ -3910,7 +3919,10 @@ class ProductStockController extends Controller
             $request->has('minimo') ? (float) $request->validated('minimo') : null,
         );
 
-        return new StockResource($stock);
+        // 200 explícito: fijar stock no crea un recurso nuevo desde el punto de
+        // vista de la API, pero la primera vez `firstOrCreate` deja el modelo
+        // marcado como recién creado y Laravel respondería 201.
+        return (new StockResource($stock))->response()->setStatusCode(Response::HTTP_OK);
     }
 }
 ```
@@ -3935,8 +3947,11 @@ En `app/Modules/Warehouses/routes.php`, dentro del grupo:
 En `StoreProductRequest::rules()` añadir:
 
 ```php
-            'warehouse_id' => ['sometimes', 'required_with:cantidad', 'integer', 'exists:warehouses,id'],
-            'cantidad' => ['sometimes', 'required_with:warehouse_id', 'numeric', 'min:0'],
+            // Sin `sometimes`: combinado con `required_with` sobre el MISMO campo,
+            // Laravel se salta la regla justo cuando el campo falta, que es cuando
+            // tiene que saltar. Ausentes los dos no pasa nada; uno solo da 422.
+            'warehouse_id' => ['required_with:cantidad', 'integer', 'exists:warehouses,id'],
+            'cantidad' => ['required_with:warehouse_id', 'numeric', 'min:0'],
 ```
 
 En `CreateProduct::handle()`, cambiar la firma y crear el stock inicial dentro de la misma transacción:
@@ -3965,6 +3980,8 @@ En `CreateProduct::handle()`, cambiar la firma y crear el stock inicial dentro d
                     $stockInicial['warehouse_id'],
                     $stockInicial['cantidad'],
                 );
+
+                return $product->load('units.unit', 'stocks');
             }
 
             return $product->load('units.unit');
