@@ -1,5 +1,6 @@
 <?php
 
+use App\Modules\Access\Http\Middleware\ScopeToOwnWarehouse;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -16,6 +17,10 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->throttleApi();
+
+        $middleware->alias([
+            'scope.warehouse' => ScopeToOwnWarehouse::class,
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(
