@@ -291,7 +291,7 @@ git commit -m "chore: esqueleto Laravel 13 solo-API con sanctum, permission y qu
   - `App\Modules\Access\Enums\Role` con `Role::Admin` (`'admin'`) y `Role::Vendedor` (`'vendedor'`).
   - `App\Models\User::isAdmin(): bool` y `User::isVendedor(): bool`.
   - `Database\Seeders\RolesAndPermissionsSeeder` — fuente única de roles y permisos.
-  - `Tests\TestCase::actingAsRole(string $role, ?Warehouse $warehouse = null): User` — siembra roles, crea el usuario, lo autentica por Sanctum y lo devuelve.
+  - `Tests\TestCase::actingAsRole(string $role, array $attributes = []): User` — siembra roles, crea el usuario con esos atributos, lo autentica por Sanctum y lo devuelve. Los tests de tareas posteriores lo llaman como `actingAsRole('vendedor', ['warehouse_id' => $almacen->id])`.
   - `POST /v1/login`, `POST /v1/logout`, `GET /v1/me`.
 
 - [ ] **Step 1: Escribir los tests de autenticación**
