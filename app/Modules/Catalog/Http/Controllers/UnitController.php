@@ -11,6 +11,7 @@ use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Http\Response;
+use Illuminate\Validation\ValidationException;
 use Spatie\QueryBuilder\AllowedFilter;
 use Spatie\QueryBuilder\QueryBuilder;
 
@@ -64,6 +65,12 @@ class UnitController extends Controller
     public function destroy(Unit $unit): Response
     {
         $this->authorize('delete', $unit);
+
+        if ($unit->productUnits()->exists()) {
+            throw ValidationException::withMessages([
+                'unit' => ['La unidad está asignada a algún producto y no se puede borrar.'],
+            ]);
+        }
 
         $unit->delete();
 
