@@ -2,6 +2,7 @@
 
 namespace App\Modules\Catalog\Models;
 
+use App\Modules\Warehouses\Models\Stock;
 use Database\Factories\ProductFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -30,6 +31,17 @@ class Product extends Model
     public function baseProductUnit(): ?ProductUnit
     {
         return $this->units()->where('is_base', true)->first();
+    }
+
+    /** @return HasMany<Stock, $this> */
+    public function stocks(): HasMany
+    {
+        return $this->hasMany(Stock::class);
+    }
+
+    public function cantidadEn(int $warehouseId): float
+    {
+        return (float) ($this->stocks()->where('warehouse_id', $warehouseId)->value('cantidad') ?? 0);
     }
 
     /**

@@ -26,6 +26,8 @@ class StoreProductRequest extends FormRequest
                 // La unidad base es, por definición, la de factor 1 (spec §4.1).
                 Rule::exists('units', 'id')->where('factor', 1),
             ],
+            'warehouse_id' => ['required_with:cantidad', 'integer', 'exists:warehouses,id'],
+            'cantidad' => ['required_with:warehouse_id', 'numeric', 'min:0'],
         ];
     }
 

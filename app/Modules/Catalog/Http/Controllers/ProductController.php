@@ -31,7 +31,7 @@ class ProductController extends Controller
         $this->authorize('viewAny', Product::class);
 
         $products = QueryBuilder::for(Product::class)
-            ->with('units.unit')
+            ->with(['units.unit', 'stocks'])
             ->allowedFilters(AllowedFilter::partial('nombre'))
             ->allowedSorts('nombre', 'precio_venta', 'created_at')
             ->paginate()
@@ -48,6 +48,10 @@ class ProductController extends Controller
             $request->user(),
             $request->safe()->only(['nombre', 'precio_compra', 'precio_venta']),
             (int) $request->validated('base_unit_id'),
+            $request->has('warehouse_id') ? [
+                'warehouse_id' => (int) $request->validated('warehouse_id'),
+                'cantidad' => (float) $request->validated('cantidad'),
+            ] : null,
         );
 
         return (new ProductResource($product))->response()->setStatusCode(Response::HTTP_CREATED);
@@ -57,7 +61,7 @@ class ProductController extends Controller
     {
         $this->authorize('view', $product);
 
-        return new ProductResource($product->load('units.unit'));
+        return new ProductResource($product->load(['units.unit', 'stocks']));
     }
 
     public function update(UpdateProductRequest $request, Product $product, UpdateProduct $action): ProductResource

@@ -31,4 +31,9 @@ class ProductPolicy
     {
         return $user->can('products.delete');
     }
+
+    public function setStock(User $user, Product $product): bool
+    {
+        return $user->can('stock.set');
+    }
 }
