@@ -26,9 +26,12 @@ class UpdateUserRequest extends FormRequest
      */
     public function rules(): array
     {
-        /** @var User $target */
+        // En una petición real el usuario siempre llega enlazado; queda nulo
+        // cuando Scribe instancia el request fuera de una petición para leer
+        // las reglas.
+        /** @var User|null $target */
         $target = $this->route('user');
-        $rolFinal = $this->input('rol', $target->getRoleNames()->first());
+        $rolFinal = $this->input('rol', $target?->getRoleNames()->first());
 
         return [
             'name' => ['sometimes', 'string', 'max:255'],
