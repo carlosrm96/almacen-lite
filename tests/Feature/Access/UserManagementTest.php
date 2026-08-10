@@ -100,4 +100,14 @@ class UserManagementTest extends TestCase
         $this->deleteJson("/v1/users/{$admin->id}")->assertForbidden();
         $this->assertDatabaseHas('users', ['id' => $admin->id]);
     }
+
+    public function test_cambiar_el_rol_a_vendedor_sin_almacen_es_rechazado(): void
+    {
+        $this->actingAsRole('admin');
+        $otro = User::factory()->create();
+        $otro->assignRole('admin');
+
+        $this->putJson("/v1/users/{$otro->id}", ['rol' => 'vendedor'])
+            ->assertStatus(422)->assertJsonValidationErrors('warehouse_id');
+    }
 }
