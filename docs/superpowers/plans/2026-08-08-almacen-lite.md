@@ -2596,8 +2596,11 @@ class ProductManagementTest extends TestCase
 
     public function test_el_vendedor_no_puede_crear_editar_ni_borrar_productos(): void
     {
-        $product = Product::factory()->create();
+        // La unidad base primero: `ProductFactory` reutiliza la de factor 1 vía
+        // `firstWhere`, pero `Unit::factory()->base()` la inserta a pelo y
+        // `units.nombre` es único, así que el orden inverso rompe con duplicado.
         $base = Unit::factory()->base()->create();
+        $product = Product::factory()->create();
         $this->actingAsRole('vendedor', ['warehouse_id' => Warehouse::factory()->create()->id]);
 
         $this->postJson('/v1/products', [
