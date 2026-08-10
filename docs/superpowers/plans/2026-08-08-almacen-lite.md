@@ -2954,9 +2954,14 @@ class UpdateProduct
         return DB::transaction(function () use ($user, $product, $datos): Product {
             $cambios = [];
 
+            // El formato se elige por el nombre del campo, no por `is_numeric` del
+            // valor: un producto llamado "1000" no es un precio y no debe quedar
+            // registrado como "1000.00".
+            $precios = ['precio_compra', 'precio_venta'];
+
             foreach ($datos as $campo => $nuevo) {
                 $antes = $product->getAttribute($campo);
-                $formatea = fn (mixed $v): string => is_float($v) || is_numeric($v)
+                $formatea = fn (mixed $v): string => in_array($campo, $precios, true)
                     ? number_format((float) $v, 2, '.', '')
                     : (string) $v;
 
@@ -4782,7 +4787,7 @@ class StoreSaleRequest extends FormRequest
 }
 ```
 
-`exists:products,id` no encuentra los productos con soft delete, así que un producto eliminado se rechaza automáticamente en `items.*.product_id`.
+Ojo con el borrado lógico: la regla `exists` de Laravel consulta la tabla sin pasar por el global scope de `SoftDeletes`, así que un `exists:products,id` pelado **aceptaría** un producto eliminado. De ahí el `->whereNull('deleted_at')` explícito, que es lo que hace fallar la venta de un producto borrado.
 
 - [ ] **Step 8: Resources, Policy, Controller, Provider y rutas**
 
@@ -5347,6 +5352,7 @@ class TransferStock
 namespace App\Modules\Warehouses\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class StoreTransferRequest extends FormRequest
 {
@@ -5361,7 +5367,8 @@ class StoreTransferRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'product_id' => ['required', 'integer', 'exists:products,id'],
+            // `exists` no respeta el borrado lógico; hay que excluirlo a mano.
+            'product_id' => ['required', 'integer', Rule::exists('products', 'id')->whereNull('deleted_at')],
             'from_warehouse_id' => ['required', 'integer', 'exists:warehouses,id'],
             'to_warehouse_id' => ['required', 'integer', 'exists:warehouses,id', 'different:from_warehouse_id'],
             'unit_id' => ['nullable', 'integer', 'exists:units,id'],
