@@ -24,14 +24,134 @@ class SalesMetricsReporter
     public function report(Period $period, CarbonInterface $fecha, ?int $warehouseId): array
     {
         [$desde, $hasta] = $period->rango($fecha);
+        [$desdeAnterior, $hastaAnterior] = $period->rangoAnterior($fecha);
+
+        $actual = $this->agregados($desde, $hasta, $warehouseId);
+        $anterior = $this->agregados($desdeAnterior, $hastaAnterior, $warehouseId);
 
         return [
             'periodo' => $period->value,
             'desde' => $desde->toDateTimeString(),
             'hasta' => $hasta->toDateTimeString(),
             'warehouse_id' => $warehouseId,
-            ...$this->agregados($desde, $hasta, $warehouseId),
+            ...$actual,
+            'serie' => $this->serie($period, $desde, $hasta, $warehouseId),
+            'top_productos' => $this->topProductos($desde, $hasta, $warehouseId),
+            'ventas_por_vendedor' => $this->ventasPorVendedor($desde, $hasta, $warehouseId),
+            'comparativa' => [
+                'ingresos_anterior' => $anterior['ingresos'],
+                'numero_ventas_anterior' => $anterior['numero_ventas'],
+                'variacion_ingresos' => $this->variacion((float) $anterior['ingresos'], (float) $actual['ingresos']),
+                'variacion_numero_ventas' => $this->variacion((float) $anterior['numero_ventas'], (float) $actual['numero_ventas']),
+            ],
         ];
+    }
+
+    /**
+     * Serie de tiempo del periodo, con los puntos vacíos incluidos para que el
+     * panel pueda graficar sin rellenar huecos.
+     *
+     * @return list<array{etiqueta: string, ingresos: string, numero_ventas: int}>
+     */
+    private function serie(Period $period, CarbonImmutable $desde, CarbonImmutable $hasta, ?int $warehouseId): array
+    {
+        $ventas = $this->ventasEn($desde, $hasta, $warehouseId)->get(['created_at', 'total']);
+
+        $puntos = [];
+        $cursor = $desde;
+        $paso = $period === Period::Daily ? 'addHour' : 'addDay';
+        $formato = $period === Period::Daily ? 'H' : 'Y-m-d';
+
+        while ($cursor < $hasta) {
+            $puntos[$cursor->format($formato)] = ['ingresos' => 0.0, 'numero_ventas' => 0];
+            $cursor = $cursor->{$paso}();
+        }
+
+        foreach ($ventas as $venta) {
+            $clave = CarbonImmutable::instance($venta->created_at)->format($formato);
+
+            if (! isset($puntos[$clave])) {
+                continue;
+            }
+
+            $puntos[$clave]['ingresos'] += (float) $venta->total;
+            $puntos[$clave]['numero_ventas']++;
+        }
+
+        $serie = [];
+
+        foreach ($puntos as $etiqueta => $valores) {
+            $serie[] = [
+                'etiqueta' => (string) $etiqueta,
+                'ingresos' => number_format($valores['ingresos'], 2, '.', ''),
+                'numero_ventas' => $valores['numero_ventas'],
+            ];
+        }
+
+        return $serie;
+    }
+
+    /**
+     * @return array{por_unidades: list<array<string, mixed>>, por_ingresos: list<array<string, mixed>>}
+     */
+    private function topProductos(CarbonImmutable $desde, CarbonImmutable $hasta, ?int $warehouseId): array
+    {
+        $base = fn (): EloquentBuilder => SaleItem::query()
+            ->whereIn('sale_id', $this->ventasEn($desde, $hasta, $warehouseId)->select('sales.id'))
+            ->join('products', 'products.id', '=', 'sale_items.product_id')
+            ->groupBy('sale_items.product_id', 'products.nombre')
+            ->limit(10);
+
+        $porUnidades = $base()
+            ->selectRaw('sale_items.product_id, products.nombre, SUM(sale_items.cantidad_base) as unidades')
+            ->orderByDesc('unidades')
+            ->get()
+            ->map(fn ($fila): array => [
+                'product_id' => (int) $fila->product_id,
+                'nombre' => $fila->nombre,
+                'unidades' => number_format((float) $fila->unidades, 3, '.', ''),
+            ])->all();
+
+        $porIngresos = $base()
+            ->selectRaw('sale_items.product_id, products.nombre, SUM(sale_items.subtotal) as ingresos')
+            ->orderByDesc('ingresos')
+            ->get()
+            ->map(fn ($fila): array => [
+                'product_id' => (int) $fila->product_id,
+                'nombre' => $fila->nombre,
+                'ingresos' => number_format((float) $fila->ingresos, 2, '.', ''),
+            ])->all();
+
+        return ['por_unidades' => $porUnidades, 'por_ingresos' => $porIngresos];
+    }
+
+    /**
+     * @return list<array{user_id: int, nombre: string, ingresos: string, numero_ventas: int}>
+     */
+    private function ventasPorVendedor(CarbonImmutable $desde, CarbonImmutable $hasta, ?int $warehouseId): array
+    {
+        return $this->ventasEn($desde, $hasta, $warehouseId)
+            ->join('users', 'users.id', '=', 'sales.user_id')
+            ->groupBy('sales.user_id', 'users.name')
+            ->selectRaw('sales.user_id, users.name, SUM(sales.total) as ingresos, COUNT(*) as numero_ventas')
+            ->orderByDesc('ingresos')
+            ->get()
+            ->map(fn ($fila): array => [
+                'user_id' => (int) $fila->user_id,
+                'nombre' => $fila->name,
+                'ingresos' => number_format((float) $fila->ingresos, 2, '.', ''),
+                'numero_ventas' => (int) $fila->numero_ventas,
+            ])->all();
+    }
+
+    /** Variación porcentual; `null` si el periodo anterior fue cero (no hay base de comparación). */
+    private function variacion(float $anterior, float $actual): ?float
+    {
+        if (abs($anterior) < 0.0001) {
+            return null;
+        }
+
+        return round((($actual - $anterior) / $anterior) * 100, 2);
     }
 
     /**
