@@ -4756,6 +4756,7 @@ namespace App\Modules\Sales\Http\Requests;
 use App\Modules\Catalog\Models\ProductUnit;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class StoreSaleRequest extends FormRequest
 {
@@ -4774,7 +4775,9 @@ class StoreSaleRequest extends FormRequest
             // el admin debe indicarlo explícitamente.
             'warehouse_id' => ['required', 'integer', 'exists:warehouses,id'],
             'items' => ['required', 'array', 'min:1'],
-            'items.*.product_id' => ['required', 'integer', 'exists:products,id'],
+            // `exists` consulta la tabla directamente y NO respeta el borrado
+            // lógico: hay que excluir los eliminados a mano.
+            'items.*.product_id' => ['required', 'integer', Rule::exists('products', 'id')->whereNull('deleted_at')],
             'items.*.unit_id' => ['nullable', 'integer', 'exists:units,id'],
             'items.*.cantidad' => ['required', 'numeric', 'gt:0'],
         ];
