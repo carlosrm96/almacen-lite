@@ -2,6 +2,7 @@
 
 use App\Modules\Access\Providers\AccessServiceProvider;
 use App\Modules\Audit\Providers\AuditServiceProvider;
+use App\Modules\Catalog\Providers\CatalogServiceProvider;
 use App\Modules\Warehouses\Providers\WarehousesServiceProvider;
 use App\Providers\AppServiceProvider;
 
@@ -10,4 +11,5 @@ return [
     WarehousesServiceProvider::class,
     AccessServiceProvider::class,
     AuditServiceProvider::class,
+    CatalogServiceProvider::class,
 ];
