@@ -49,6 +49,7 @@ php artisan scribe:generate   # regenerar la doc de la API en /docs
 - **Diseño:** [`docs/superpowers/specs/2026-08-08-almacen-lite-design.md`](docs/superpowers/specs/2026-08-08-almacen-lite-design.md)
 - **Plan de implementación:** [`docs/superpowers/plans/2026-08-08-almacen-lite.md`](docs/superpowers/plans/2026-08-08-almacen-lite.md)
 - **Guía funcional por módulo:** [`docs/funcional/README.md`](docs/funcional/README.md)
+- **Despliegue en producción:** [`docs/despliegue.md`](docs/despliegue.md)
 - **Referencia de endpoints:** `http://localhost:8000/docs` (Scribe)
 
 ## Roles
