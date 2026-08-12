@@ -9,6 +9,17 @@ use function Knuckles\Scribe\Config\removeStrategies;
 
 // Only the most common configs are shown. See the https://scribe.knuckles.wtf/laravel/reference/config for all.
 
+// Scribe está en `require-dev`: en producción se instala con `composer
+// install --no-dev` y estas clases no existen. Laravel evalúa *todos* los
+// ficheros de `config/` al arrancar (`LoadConfiguration`), así que sin esta
+// guarda el framework no bootea en producción: `AuthIn::BEARER` de más abajo
+// aborta cualquier comando de artisan y cualquier petición HTTP.
+// El `use` de arriba no carga nada por sí solo; el return corta antes de la
+// primera desreferencia. Nada de la aplicación lee `config('scribe')`.
+if (! class_exists(AuthIn::class)) {
+    return [];
+}
+
 return [
     // The HTML <title> for the generated documentation.
     'title' => 'API almacén — documentación',
