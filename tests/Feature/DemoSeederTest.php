@@ -5,8 +5,11 @@ namespace Tests\Feature;
 use App\Models\User;
 use App\Modules\Audit\Models\AuditLog;
 use App\Modules\Catalog\Models\Product;
+use App\Modules\Sales\Models\Sale;
 use App\Modules\Warehouses\Models\Stock;
+use App\Modules\Warehouses\Models\Transfer;
 use App\Modules\Warehouses\Models\Warehouse;
+use Carbon\CarbonInterface;
 use Database\Seeders\DemoSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -68,5 +71,38 @@ class DemoSeederTest extends TestCase
         $this->assertSame(1, User::where('email', 'admin@almacen.test')->count());
         $this->assertSame(2, Warehouse::count());
         $this->assertSame(8, Product::count());
+    }
+
+    public function test_hay_ventas_repartidas_incluyendo_la_semana_actual(): void
+    {
+        $this->seed(DemoSeeder::class);
+
+        $this->assertGreaterThanOrEqual(12, Sale::count());
+        // Ventas de esta semana → las métricas semanales no salen vacías.
+        $this->assertTrue(
+            Sale::where('created_at', '>=', now()->startOfWeek(CarbonInterface::MONDAY))->exists()
+        );
+        // Más de un vendedor con ventas → ventas_por_vendedor con varias filas.
+        $this->assertGreaterThanOrEqual(2, Sale::query()->distinct()->count('user_id'));
+    }
+
+    public function test_hay_transferencias_auditadas(): void
+    {
+        $this->seed(DemoSeeder::class);
+
+        $this->assertGreaterThanOrEqual(3, Transfer::count());
+        $this->assertTrue(AuditLog::where('accion', 'transferencia.realizada')->exists());
+    }
+
+    public function test_los_movimientos_son_idempotentes(): void
+    {
+        $this->seed(DemoSeeder::class);
+        $ventas = Sale::count();
+        $transferencias = Transfer::count();
+
+        $this->seed(DemoSeeder::class);
+
+        $this->assertSame($ventas, Sale::count());
+        $this->assertSame($transferencias, Transfer::count());
     }
 }
