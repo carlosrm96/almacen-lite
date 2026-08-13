@@ -32,6 +32,19 @@ class UserManagementTest extends TestCase
         $this->assertTrue(User::where('email', 'ana@almacen.test')->first()->isVendedor());
     }
 
+    public function test_se_pueden_ordenar_los_usuarios_por_email(): void
+    {
+        $this->actingAsRole('admin');
+        User::factory()->create(['email' => 'zzz@almacen.test']);
+        User::factory()->create(['email' => 'aaa@almacen.test']);
+
+        $emails = $this->getJson('/v1/users?sort=email')->assertOk()->json('data.*.email');
+
+        $ordenados = $emails;
+        sort($ordenados);
+        $this->assertSame($ordenados, $emails);
+    }
+
     public function test_un_vendedor_sin_almacen_es_rechazado(): void
     {
         $this->actingAsRole('admin');

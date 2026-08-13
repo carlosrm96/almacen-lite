@@ -52,6 +52,17 @@ class UnitManagementTest extends TestCase
         $this->assertDatabaseMissing('units', ['id' => $unit->id]);
     }
 
+    public function test_se_pueden_ordenar_las_unidades_por_fecha_de_creacion(): void
+    {
+        $this->actingAsRole('admin');
+        $vieja = Unit::factory()->create(['nombre' => 'vieja', 'created_at' => now()->subDays(2)]);
+        $nueva = Unit::factory()->create(['nombre' => 'nueva', 'created_at' => now()]);
+
+        $ids = $this->getJson('/v1/units?sort=created_at')->assertOk()->json('data.*.id');
+
+        $this->assertSame([$vieja->id, $nueva->id], $ids);
+    }
+
     public function test_el_vendedor_no_puede_gestionar_unidades(): void
     {
         $this->actingAsRole('vendedor', ['warehouse_id' => Warehouse::factory()->create()->id]);

@@ -30,7 +30,7 @@ class UnitController extends Controller
 
         $units = QueryBuilder::for(Unit::class)
             ->allowedFilters(AllowedFilter::partial('nombre'))
-            ->allowedSorts('nombre', 'factor')
+            ->allowedSorts('nombre', 'factor', 'created_at')
             ->paginate()
             ->appends(request()->query());
 
