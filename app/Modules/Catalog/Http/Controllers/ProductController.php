@@ -26,13 +26,24 @@ class ProductController extends Controller
 {
     use AuthorizesRequests;
 
+    /**
+     * Listar productos.
+     *
+     * @queryParam filter[nombre] string Filtra por nombre (coincidencia parcial). Example: agua
+     * @queryParam filter[almacen] integer Solo productos con stock en el almacén indicado. Example: 1
+     * @queryParam sort string Orden: nombre, precio_venta, created_at. Prefijo - para descendente. Example: -created_at
+     * @queryParam page integer Número de página. Example: 1
+     */
     public function index(): AnonymousResourceCollection
     {
         $this->authorize('viewAny', Product::class);
 
         $products = QueryBuilder::for(Product::class)
             ->with(['units.unit', 'stocks'])
-            ->allowedFilters(AllowedFilter::partial('nombre'))
+            ->allowedFilters(
+                AllowedFilter::partial('nombre'),
+                AllowedFilter::exact('almacen', 'stocks.warehouse_id'),
+            )
             ->allowedSorts('nombre', 'precio_venta', 'created_at')
             ->paginate()
             ->appends(request()->query());

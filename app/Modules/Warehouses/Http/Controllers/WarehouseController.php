@@ -28,6 +28,14 @@ class WarehouseController extends Controller
 {
     use AuthorizesRequests;
 
+    /**
+     * Listar almacenes.
+     *
+     * @queryParam filter[nombre] string Filtra por nombre (coincidencia parcial). Example: central
+     * @queryParam filter[activo] boolean Filtra por estado activo. Example: 1
+     * @queryParam sort string Orden: nombre, created_at. Prefijo - para descendente. Example: nombre
+     * @queryParam page integer Número de página. Example: 1
+     */
     public function index(): AnonymousResourceCollection
     {
         $this->authorize('viewAny', Warehouse::class);

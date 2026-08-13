@@ -20,6 +20,17 @@ class AuditLogController extends Controller
 {
     use AuthorizesRequests;
 
+    /**
+     * Listar registros de auditoría.
+     *
+     * @queryParam filter[user_id] integer Filtra por usuario. Example: 1
+     * @queryParam filter[accion] string Filtra por acción exacta. Example: transferencia.realizada
+     * @queryParam filter[auditable_id] integer Filtra por id de la entidad auditada. Example: 3
+     * @queryParam filter[desde] string Fecha mínima (created_at >=). Example: 2026-08-01
+     * @queryParam filter[hasta] string Fecha máxima (created_at <=). Example: 2026-08-31
+     * @queryParam sort string Orden: created_at. Prefijo - para descendente. Example: -created_at
+     * @queryParam page integer Número de página. Example: 1
+     */
     public function index(): AnonymousResourceCollection
     {
         $this->authorize('viewAny', AuditLog::class);

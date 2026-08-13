@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Sales;
 
+use App\Models\User;
 use App\Modules\Catalog\Models\Product;
 use App\Modules\Sales\Models\Sale;
 use App\Modules\Warehouses\Models\Stock;
@@ -12,6 +13,22 @@ use Tests\TestCase;
 class SaleVisibilityTest extends TestCase
 {
     use RefreshDatabase;
+
+    public function test_se_pueden_filtrar_ventas_por_vendedor_con_el_alias(): void
+    {
+        $this->actingAsRole('admin');
+        $almacen = Warehouse::factory()->create();
+        $ana = User::factory()->create();
+        $luis = User::factory()->create();
+
+        $ventaAna = Sale::factory()->for($almacen)->create(['user_id' => $ana->id]);
+        Sale::factory()->for($almacen)->create(['user_id' => $luis->id]);
+
+        $this->getJson("/v1/sales?filter[vendedor]={$ana->id}")
+            ->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.id', $ventaAna->id);
+    }
 
     public function test_el_vendedor_vende_siempre_en_su_almacen_aunque_pida_otro(): void
     {

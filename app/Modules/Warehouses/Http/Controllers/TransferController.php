@@ -23,6 +23,16 @@ class TransferController extends Controller
 {
     use AuthorizesRequests;
 
+    /**
+     * Listar transferencias.
+     *
+     * @queryParam filter[product_id] integer Filtra por producto. Example: 1
+     * @queryParam filter[from_warehouse_id] integer Filtra por almacén de origen. Example: 1
+     * @queryParam filter[to_warehouse_id] integer Filtra por almacén de destino. Example: 2
+     * @queryParam filter[user_id] integer Filtra por usuario que hizo la transferencia. Example: 1
+     * @queryParam sort string Orden: created_at. Prefijo - para descendente. Example: -created_at
+     * @queryParam page integer Número de página. Example: 1
+     */
     public function index(): AnonymousResourceCollection
     {
         $this->authorize('viewAny', Transfer::class);

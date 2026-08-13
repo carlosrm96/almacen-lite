@@ -5,6 +5,7 @@ namespace Tests\Feature\Catalog;
 use App\Modules\Audit\Models\AuditLog;
 use App\Modules\Catalog\Models\Product;
 use App\Modules\Catalog\Models\Unit;
+use App\Modules\Warehouses\Models\Stock;
 use App\Modules\Warehouses\Models\Warehouse;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -12,6 +13,28 @@ use Tests\TestCase;
 class ProductManagementTest extends TestCase
 {
     use RefreshDatabase;
+
+    public function test_se_pueden_filtrar_productos_por_almacen(): void
+    {
+        $this->actingAsRole('admin');
+        $central = Warehouse::factory()->create();
+        $norte = Warehouse::factory()->create();
+
+        $enAmbos = Product::factory()->create(['nombre' => 'En ambos']);
+        Stock::factory()->for($enAmbos)->for($central)->create();
+        Stock::factory()->for($enAmbos)->for($norte)->create();
+
+        $soloNorte = Product::factory()->create(['nombre' => 'Solo Norte']);
+        Stock::factory()->for($soloNorte)->for($norte)->create();
+
+        $nombres = $this->getJson("/v1/products?filter[almacen]={$central->id}")
+            ->assertOk()->json('data.*.nombre');
+
+        $this->assertContains('En ambos', $nombres);
+        $this->assertNotContains('Solo Norte', $nombres);
+        // whereHas no duplica: 'En ambos' sale una sola vez pese a tener stock en dos almacenes.
+        $this->assertSame(1, count(array_filter($nombres, fn ($n) => $n === 'En ambos')));
+    }
 
     public function test_el_admin_crea_un_producto_con_su_unidad_base(): void
     {

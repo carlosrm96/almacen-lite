@@ -23,6 +23,15 @@ class SaleController extends Controller
 {
     use AuthorizesRequests;
 
+    /**
+     * Listar ventas.
+     *
+     * @queryParam filter[warehouse_id] integer Filtra por almacén. Example: 1
+     * @queryParam filter[user_id] integer Filtra por vendedor (id de usuario). Example: 5
+     * @queryParam filter[vendedor] integer Alias de user_id. Example: 5
+     * @queryParam sort string Orden: created_at, total. Prefijo - para descendente. Example: -created_at
+     * @queryParam page integer Número de página. Example: 1
+     */
     public function index(): AnonymousResourceCollection
     {
         $this->authorize('viewAny', Sale::class);
@@ -32,7 +41,11 @@ class SaleController extends Controller
         $sales = QueryBuilder::for(Sale::class)
             ->with('items.product', 'items.unit')
             ->when($user->isVendedor(), fn ($q) => $q->where('warehouse_id', $user->warehouse_id))
-            ->allowedFilters(AllowedFilter::exact('warehouse_id'), AllowedFilter::exact('user_id'))
+            ->allowedFilters(
+                AllowedFilter::exact('warehouse_id'),
+                AllowedFilter::exact('user_id'),
+                AllowedFilter::exact('vendedor', 'user_id'),
+            )
             ->defaultSort('-created_at', '-id')
             ->allowedSorts('created_at', 'total')
             ->paginate()

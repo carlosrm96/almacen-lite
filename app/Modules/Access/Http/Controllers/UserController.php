@@ -26,6 +26,15 @@ class UserController extends Controller
 {
     use AuthorizesRequests;
 
+    /**
+     * Listar usuarios.
+     *
+     * @queryParam filter[name] string Filtra por nombre (coincidencia parcial). Example: ana
+     * @queryParam filter[email] string Filtra por email (coincidencia parcial). Example: ana@
+     * @queryParam filter[warehouse_id] integer Filtra por almacén asignado. Example: 1
+     * @queryParam sort string Orden: name, email, created_at. Prefijo - para descendente. Example: name
+     * @queryParam page integer Número de página. Example: 1
+     */
     public function index(): AnonymousResourceCollection
     {
         $this->authorize('viewAny', User::class);

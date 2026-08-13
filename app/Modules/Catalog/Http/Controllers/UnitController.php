@@ -24,6 +24,13 @@ class UnitController extends Controller
 {
     use AuthorizesRequests;
 
+    /**
+     * Listar unidades.
+     *
+     * @queryParam filter[nombre] string Filtra por nombre (coincidencia parcial). Example: caja
+     * @queryParam sort string Orden: nombre, factor, created_at. Prefijo - para descendente. Example: nombre
+     * @queryParam page integer Número de página. Example: 1
+     */
     public function index(): AnonymousResourceCollection
     {
         $this->authorize('viewAny', Unit::class);
