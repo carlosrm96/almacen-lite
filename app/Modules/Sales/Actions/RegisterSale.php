@@ -29,7 +29,7 @@ class RegisterSale
             // eso, resolver la unidad base de una línea sin `unit_id` disparaba
             // una consulta `belongsTo` perezosa por línea, dentro de la
             // transacción que mantiene los locks de stock.
-            $products = Product::with('units.unit')
+            $products = Product::with('units.unit', 'currency')
                 ->whereIn('id', array_column($items, 'product_id'))
                 ->get()
                 ->keyBy('id');
@@ -94,13 +94,24 @@ class RegisterSale
                 $stocks[$productId]->decrement('cantidad', $solicitado);
             }
 
-            // 5. Registrar la venta con los snapshots de precio.
+            // 5. Registrar la venta con los snapshots de precio, moneda y tasa.
+            //
+            // Los precios unitarios se guardan en la moneda del producto (el
+            // ticket tiene que poder mostrar lo que se cobró), pero `subtotal` y
+            // `total` se guardan ya convertidos a moneda base: así toda la
+            // agregación de métricas suma importes comparables aunque el
+            // catálogo mezcle CUP y USD. La tasa se congela por línea, igual que
+            // los precios, para que una devaluación futura no reescriba la
+            // ganancia del pasado.
             $sale = Sale::create(['warehouse_id' => $warehouseId, 'user_id' => $user->id, 'total' => 0]);
             $total = 0.0;
 
             foreach ($lineas as $linea) {
                 $product = $linea['product'];
-                $subtotal = round($product->precio_venta * $linea['cantidad_base'], 2);
+                $moneda = $product->moneda();
+                $tasa = (float) $moneda->tasa;
+
+                $subtotal = round($product->precio_venta * $linea['cantidad_base'] * $tasa, 2);
                 $total += $subtotal;
 
                 $sale->items()->create([
@@ -110,6 +121,8 @@ class RegisterSale
                     'cantidad_base' => $linea['cantidad_base'],
                     'precio_venta_unit' => $product->precio_venta,
                     'precio_compra_unit' => $product->precio_compra,
+                    'moneda_codigo' => $moneda->codigo,
+                    'tasa_cambio' => $tasa,
                     'subtotal' => $subtotal,
                 ]);
             }

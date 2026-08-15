@@ -6,6 +6,7 @@ use App\Modules\Warehouses\Models\Stock;
 use Database\Factories\ProductFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use RuntimeException;
@@ -15,11 +16,34 @@ class Product extends Model
     /** @use HasFactory<ProductFactory> */
     use HasFactory, SoftDeletes;
 
-    protected $fillable = ['nombre', 'precio_compra', 'precio_venta'];
+    protected $fillable = ['nombre', 'precio_compra', 'precio_venta', 'currency_id'];
 
     protected function casts(): array
     {
         return ['precio_compra' => 'float', 'precio_venta' => 'float'];
+    }
+
+    /** @return BelongsTo<Currency, $this> */
+    public function currency(): BelongsTo
+    {
+        return $this->belongsTo(Currency::class);
+    }
+
+    /**
+     * Moneda en la que están `precio_compra` y `precio_venta`.
+     *
+     * `currency_id` nulo significa "moneda base", que es el caso normal: así un
+     * catálogo íntegramente en la moneda base no obliga a rellenar la columna.
+     */
+    public function moneda(): Currency
+    {
+        return $this->currency ?? Currency::base();
+    }
+
+    /** Cuántas unidades de moneda base vale 1 unidad de la moneda del producto. */
+    public function tasaCambio(): float
+    {
+        return (float) $this->moneda()->tasa;
     }
 
     /** @return HasMany<ProductUnit, $this> */

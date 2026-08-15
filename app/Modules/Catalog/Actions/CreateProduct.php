@@ -29,6 +29,7 @@ class CreateProduct
                 'nombre' => $product->nombre,
                 'precio_compra' => number_format($product->precio_compra, 2, '.', ''),
                 'precio_venta' => number_format($product->precio_venta, 2, '.', ''),
+                'moneda' => $product->moneda()->codigo,
             ]);
 
             if ($stockInicial !== null) {

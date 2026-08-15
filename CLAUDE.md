@@ -8,12 +8,13 @@ API REST (sin frontend en este repo) para gestionar varios almacenes:
 inventario por almacén, ventas con descuento automático de stock,
 transferencias entre almacenes, métricas de ventas/inventario y auditoría de
 movimientos. Es una copia **reducida** de `almacen-backend` (un WMS+ERP
-completo): mismas convenciones, dominio mucho más pequeño — 6 módulos y 11
+completo): mismas convenciones, dominio mucho más pequeño — 6 módulos y 12
 tablas, sin multi-empresa, sin ubicaciones, sin lotes, sin ERP.
 
 Antes de asumir cómo funciona algo, lee el spec y el plan:
 
 - **Diseño:** [`docs/superpowers/specs/2026-08-08-almacen-lite-design.md`](docs/superpowers/specs/2026-08-08-almacen-lite-design.md)
+- **Monedas y zona horaria (Cuba):** [`docs/superpowers/specs/2026-08-14-monedas-y-zona-horaria-cuba-design.md`](docs/superpowers/specs/2026-08-14-monedas-y-zona-horaria-cuba-design.md)
 - **Plan de implementación (orden de las tareas, dependencias):** [`docs/superpowers/plans/2026-08-08-almacen-lite.md`](docs/superpowers/plans/2026-08-08-almacen-lite.md)
 - **Guía funcional por módulo (para cliente/frontend, no repetir aquí):** [`docs/funcional/README.md`](docs/funcional/README.md)
 
@@ -28,8 +29,10 @@ mantenlos como fuente de verdad.
 - Dev: PHPUnit, Laravel Pint, Scribe (documentación de la API)
 - Base de datos real: MySQL en `127.0.0.1:3310`, esquema `almacen_lite`. Los
   tests corren sobre SQLite en memoria.
-- `APP_TIMEZONE=Europe/Madrid` — determina los cortes de día/semana/mes en
+- `APP_TIMEZONE=America/Havana` — determina los cortes de día/semana/mes en
   métricas.
+- `ALMACEN_MONEDA_BASE=CUP` — moneda de todos los importes agregados.
+  `ALMACEN_TASA_USD` fija la tasa con la que se **siembra** USD.
 
 ## Comandos
 
@@ -55,7 +58,7 @@ desde `routes/api.php` bajo el prefijo `/v1`.
 |---|---|
 | `Access` | Login por token, usuarios, roles y permisos |
 | `Warehouses` | Almacenes, stock por almacén, transferencias |
-| `Catalog` | Productos, unidades, asignación unidad↔producto |
+| `Catalog` | Productos, unidades, asignación unidad↔producto, monedas |
 | `Sales` | Ventas y líneas de venta |
 | `Metrics` | Métricas de ventas e inventario |
 | `Audit` | Registro de auditoría (transversal, invocado desde las Actions) |
@@ -73,14 +76,28 @@ API Resources, nunca modelos crudos; autorización con Policies.
   pedido, se rechaza la venta entera con `422` y un `productos_afectados`
   detallado; el inventario no se toca. Se valida todo antes de escribir
   nada (ver `RegisterSale`).
-- **Cada línea de venta guarda un snapshot de `precio_venta` y
-  `precio_compra`.** Cambiar la tarifa mañana no debe alterar el histórico
-  ni las métricas de ayer.
+- **Cada línea de venta guarda un snapshot de `precio_venta`,
+  `precio_compra`, `moneda_codigo` y `tasa_cambio`.** Cambiar la tarifa o
+  devaluar la moneda mañana no debe alterar el histórico ni las métricas de
+  ayer.
+- **La moneda base tiene tasa 1**, por definición, igual que la unidad base
+  tiene factor 1. `products.currency_id` nulo significa moneda base.
+- **Los importes agregados se guardan en moneda base.** `sales.total` y
+  `sale_items.subtotal` van convertidos; los `precio_*_unit` se quedan en la
+  moneda del producto. Es lo que permite que `SUM(total)` siga siendo válido
+  con un catálogo que mezcla CUP y USD — no lo rompas sumando precios
+  unitarios sin multiplicar por `tasa_cambio`.
 - **El vendedor nunca ve `precio_compra` ni nada derivado de él** —
   `ganancia`, `top_productos`, `comparativa`, valor de inventario. Esto se
   resuelve con ramas explícitas en los Resources (`ProductResource`,
   `SaleItemResource`) y con `MetricsRoleFilter`, no con campos condicionales
   sueltos: un campo nuevo no debe filtrarse al vendedor por descuido.
+- **`POST /v1/register` es de un solo uso.** Crea el admin dueño de la
+  instalación y se cierra con `403` en cuanto existe cualquier usuario. Es el
+  registro de `almacen-backend` adaptado: allí cada registro crea su propia
+  empresa aislada, aquí no hay multi-empresa, así que un registro siempre
+  abierto daría acceso total a los almacenes de otro. No acepta `rol` ni
+  `warehouse_id` del cliente.
 - **El vendedor está siempre atado a un almacén** y solo puede pedir
   métricas `weekly`. El middleware `scope.warehouse` fuerza su
   `warehouse_id` e ignora el que venga en la petición, en vez de rechazarla.

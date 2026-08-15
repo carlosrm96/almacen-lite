@@ -2,6 +2,7 @@
 
 namespace App\Modules\Metrics\Support;
 
+use App\Modules\Catalog\Models\Currency;
 use App\Modules\Warehouses\Models\Stock;
 use Illuminate\Database\Eloquent\Builder;
 
@@ -17,12 +18,16 @@ class InventoryMetricsReporter
      */
     public function report(?int $warehouseId, ?float $umbral): array
     {
+        // Los precios del producto están en su propia moneda: se convierten a
+        // moneda base con la tasa vigente antes de sumar. `currency_id` nulo
+        // significa moneda base, de ahí el COALESCE a 1.
         $valor = $this->stocksVivos($warehouseId)
             ->join('warehouses', 'warehouses.id', '=', 'stocks.warehouse_id')
+            ->leftJoin('currencies', 'currencies.id', '=', 'products.currency_id')
             ->groupBy('stocks.warehouse_id', 'warehouses.nombre')
             ->selectRaw('stocks.warehouse_id, warehouses.nombre')
-            ->selectRaw('SUM(stocks.cantidad * products.precio_compra) as a_coste')
-            ->selectRaw('SUM(stocks.cantidad * products.precio_venta) as a_venta')
+            ->selectRaw('SUM(stocks.cantidad * products.precio_compra * COALESCE(currencies.tasa, 1)) as a_coste')
+            ->selectRaw('SUM(stocks.cantidad * products.precio_venta * COALESCE(currencies.tasa, 1)) as a_venta')
             ->get();
 
         $stockBajo = $this->stocksVivos($warehouseId)
@@ -35,6 +40,8 @@ class InventoryMetricsReporter
             ->get(['stocks.warehouse_id', 'stocks.product_id', 'products.nombre', 'stocks.cantidad', 'stocks.minimo']);
 
         return [
+            // El valor del inventario va en moneda base.
+            'moneda' => Currency::base()->codigo,
             'valor_inventario' => $valor->map(fn ($fila): array => [
                 'warehouse_id' => (int) $fila->warehouse_id,
                 'nombre' => $fila->nombre,

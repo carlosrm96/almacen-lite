@@ -2,6 +2,7 @@
 
 namespace App\Modules\Metrics\Support;
 
+use App\Modules\Catalog\Models\Currency;
 use App\Modules\Metrics\Enums\Period;
 use App\Modules\Sales\Models\Sale;
 use App\Modules\Sales\Models\SaleItem;
@@ -34,6 +35,8 @@ class SalesMetricsReporter
             'desde' => $desde->toDateTimeString(),
             'hasta' => $hasta->toDateTimeString(),
             'warehouse_id' => $warehouseId,
+            // Todas las cifras de este informe van en moneda base.
+            'moneda' => Currency::base()->codigo,
             ...$actual,
             'serie' => $this->serie($period, $desde, $hasta, $warehouseId),
             'top_productos' => $this->topProductos($desde, $hasta, $warehouseId),
@@ -168,7 +171,9 @@ class SalesMetricsReporter
 
         $lineas = SaleItem::whereIn('sale_id', $ventas->clone()->select('sales.id'))
             ->selectRaw('COALESCE(SUM(cantidad_base), 0) as unidades')
-            ->selectRaw('COALESCE(SUM((precio_venta_unit - precio_compra_unit) * cantidad_base), 0) as ganancia')
+            // `precio_*_unit` están en la moneda de la línea; `tasa_cambio` los
+            // lleva a moneda base para que la suma no mezcle CUP con USD.
+            ->selectRaw('COALESCE(SUM((precio_venta_unit - precio_compra_unit) * cantidad_base * tasa_cambio), 0) as ganancia')
             ->first();
 
         return [

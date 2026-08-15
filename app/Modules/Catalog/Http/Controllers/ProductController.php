@@ -31,6 +31,7 @@ class ProductController extends Controller
      *
      * @queryParam filter[nombre] string Filtra por nombre (coincidencia parcial). Example: agua
      * @queryParam filter[almacen] integer Solo productos con stock en el almacén indicado. Example: 1
+     * @queryParam filter[moneda] string Solo productos con precios en esa moneda (código ISO). Example: USD
      * @queryParam sort string Orden: nombre, precio_venta, created_at. Prefijo - para descendente. Example: -created_at
      * @queryParam page integer Número de página. Example: 1
      */
@@ -39,10 +40,11 @@ class ProductController extends Controller
         $this->authorize('viewAny', Product::class);
 
         $products = QueryBuilder::for(Product::class)
-            ->with(['units.unit', 'stocks'])
+            ->with(['units.unit', 'stocks', 'currency'])
             ->allowedFilters(
                 AllowedFilter::partial('nombre'),
                 AllowedFilter::exact('almacen', 'stocks.warehouse_id'),
+                AllowedFilter::exact('moneda', 'currency.codigo'),
             )
             ->allowedSorts('nombre', 'precio_venta', 'created_at')
             ->paginate()
@@ -57,7 +59,7 @@ class ProductController extends Controller
 
         $product = $action->handle(
             $request->user(),
-            $request->safe()->only(['nombre', 'precio_compra', 'precio_venta']),
+            $request->safe()->only(['nombre', 'precio_compra', 'precio_venta', 'currency_id']),
             (int) $request->validated('base_unit_id'),
             $request->has('warehouse_id') ? [
                 'warehouse_id' => (int) $request->validated('warehouse_id'),
@@ -72,14 +74,14 @@ class ProductController extends Controller
     {
         $this->authorize('view', $product);
 
-        return new ProductResource($product->load(['units.unit', 'stocks']));
+        return new ProductResource($product->load(['units.unit', 'stocks', 'currency']));
     }
 
     public function update(UpdateProductRequest $request, Product $product, UpdateProduct $action): ProductResource
     {
         $this->authorize('update', $product);
 
-        return new ProductResource($action->handle($request->user(), $product, $request->validated())->load('units.unit'));
+        return new ProductResource($action->handle($request->user(), $product, $request->validated())->load('units.unit', 'currency'));
     }
 
     public function destroy(Product $product, DeleteProduct $action): Response

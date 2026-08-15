@@ -48,7 +48,10 @@ php artisan key:generate
 APP_ENV=production
 APP_DEBUG=false
 APP_URL=https://tu-dominio.com
-APP_TIMEZONE=Europe/Madrid
+APP_TIMEZONE=America/Havana
+
+ALMACEN_MONEDA_BASE=CUP
+ALMACEN_TASA_USD=420
 
 DB_HOST=127.0.0.1
 DB_PORT=3306
@@ -59,13 +62,15 @@ DB_PASSWORD=UNA_PASSWORD_FUERTE
 LOG_LEVEL=warning
 ```
 
-Tres valores que no son intercambiables:
+Cinco valores que no son intercambiables:
 
 | Clave | Motivo |
 |---|---|
 | `DB_PORT=3306` | El `3310` del `.env.example` es el MySQL de desarrollo local |
 | `APP_DEBUG=false` | Con `true`, cada error expone trazas y credenciales |
-| `APP_TIMEZONE=Europe/Madrid` | Determina los cortes de día/semana/mes de las métricas |
+| `APP_TIMEZONE=America/Havana` | Determina los cortes de día/semana/mes de las métricas |
+| `ALMACEN_MONEDA_BASE=CUP` | Moneda de `sales.total` y de todas las cifras de métricas. Cambiarla **después** de tener ventas reinterpretaría importes ya guardados |
+| `ALMACEN_TASA_USD=420` | Tasa con la que se siembra USD. El valor por defecto es un marcador de posición: ajústalo antes de sembrar |
 
 ## 5. Migrar y sembrar roles
 
@@ -73,8 +78,12 @@ Tres valores que no son intercambiables:
 php artisan migrate --force --seed
 ```
 
-`DatabaseSeeder` crea únicamente **roles y permisos** (`admin`, `vendedor`), y
-es obligatorio: sin él la autorización no funciona.
+`DatabaseSeeder` crea **roles y permisos** (`admin`, `vendedor`) y las
+**monedas** (CUP como base, USD), y es obligatorio: sin él no funcionan ni la
+autorización ni los precios.
+
+Las tasas se administran luego en la tabla `currencies` — el seeder no pisa una
+moneda ya existente, así que volver a ejecutarlo no deshace un ajuste manual.
 
 No ejecutes `DemoSeeder` en producción — son datos de prueba con contraseñas
 conocidas.
@@ -82,14 +91,27 @@ conocidas.
 ## 6. Crear el primer administrador
 
 Ningún seeder crea usuarios, así que este paso es imprescindible para poder
-entrar:
+entrar. Hazlo desde la propia API, con `POST /v1/register`:
+
+```bash
+curl -X POST https://tu-dominio.com/v1/register \
+  -H 'Content-Type: application/json' \
+  -d '{"name":"Administrador","email":"admin@tu-dominio.com","password":"una-password-segura","password_confirmation":"una-password-segura"}'
+```
+
+Devuelve `201` con el token ya listo. **Es una ruta de un solo uso**: en
+cuanto existe un usuario responde `403`, así que hazlo nada más desplegar y
+antes de exponer la URL. A partir de ahí los usuarios se crean con
+`POST /v1/users` desde la cuenta de admin.
+
+Si prefieres no exponer ese paso por HTTP, el equivalente por consola:
 
 ```bash
 php artisan tinker
 ```
 
 ```php
-$u = App\Modules\Access\Models\User::create([
+$u = App\Models\User::create([
     'name' => 'Administrador',
     'email' => 'admin@tu-dominio.com',
     'password' => 'una-password-segura',   // el cast 'hashed' la hashea sola
