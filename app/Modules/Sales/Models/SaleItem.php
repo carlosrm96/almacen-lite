@@ -11,7 +11,7 @@ class SaleItem extends Model
 {
     protected $fillable = [
         'sale_id', 'product_id', 'unit_id', 'cantidad', 'cantidad_base',
-        'precio_venta_unit', 'precio_compra_unit', 'subtotal',
+        'precio_venta_unit', 'precio_compra_unit', 'moneda_codigo', 'tasa_cambio', 'subtotal',
     ];
 
     protected function casts(): array
@@ -21,6 +21,7 @@ class SaleItem extends Model
             'cantidad_base' => 'float',
             'precio_venta_unit' => 'float',
             'precio_compra_unit' => 'float',
+            'tasa_cambio' => 'float',
             'subtotal' => 'float',
         ];
     }

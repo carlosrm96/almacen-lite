@@ -21,8 +21,13 @@ class SmokeTest extends TestCase
         $this->get('/up')->assertOk();
     }
 
-    public function test_la_zona_horaria_de_la_aplicacion_es_madrid(): void
+    public function test_la_zona_horaria_de_la_aplicacion_es_la_habana(): void
     {
-        $this->assertSame('Europe/Madrid', config('app.timezone'));
+        $this->assertSame('America/Havana', config('app.timezone'));
+    }
+
+    public function test_la_moneda_base_por_defecto_es_el_peso_cubano(): void
+    {
+        $this->assertSame('CUP', config('almacen.moneda_base'));
     }
 }

@@ -21,7 +21,11 @@ class SaleItemResource extends JsonResource
             'unidad' => $this->whenLoaded('unit', fn (): string => $this->unit->nombre),
             'cantidad' => number_format($this->cantidad, 3, '.', ''),
             'cantidad_base' => number_format($this->cantidad_base, 3, '.', ''),
+            // `precio_venta_unit` va en la moneda con la que se vendió;
+            // `subtotal` ya está convertido a moneda base (ver RegisterSale).
             'precio_venta_unit' => number_format($this->precio_venta_unit, 2, '.', ''),
+            'moneda' => $this->moneda_codigo,
+            'tasa_cambio' => number_format($this->tasa_cambio, 6, '.', ''),
             'subtotal' => number_format($this->subtotal, 2, '.', ''),
         ];
     }

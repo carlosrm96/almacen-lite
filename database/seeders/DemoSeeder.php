@@ -5,6 +5,7 @@ namespace Database\Seeders;
 use App\Models\User;
 use App\Modules\Access\Enums\Role;
 use App\Modules\Catalog\Actions\CreateProduct;
+use App\Modules\Catalog\Models\Currency;
 use App\Modules\Catalog\Models\Product;
 use App\Modules\Catalog\Models\Unit;
 use App\Modules\Sales\Actions\RegisterSale;
@@ -27,6 +28,7 @@ class DemoSeeder extends Seeder
     public function run(): void
     {
         $this->call(RolesAndPermissionsSeeder::class);
+        $this->call(CurrenciesSeeder::class);
 
         [$central, $norte] = $this->seedAlmacenes();
         [$admin, $vendedorCentral, $vendedorNorte] = $this->seedUsuarios($central, $norte);
@@ -93,23 +95,34 @@ class DemoSeeder extends Seeder
         $createProduct = app(CreateProduct::class);
         $setStock = app(SetProductStock::class);
 
-        // stock: [almacén => [cantidad, minimo]]. El Vino queda bajo mínimo en
+        $monedas = Currency::pluck('id', 'codigo');
+
+        // El catálogo mezcla las dos monedas a propósito: lo local se vende en
+        // CUP y lo importado en USD, que es como opera el negocio. Los precios
+        // en USD son de un orden de magnitud distinto — no son un error.
+        //
+        // stock: [almacén => [cantidad, minimo]]. El Ron queda bajo mínimo en
         // Central (36 < 40) a propósito, para las métricas de inventario.
         $catalogo = [
-            ['nombre' => 'Agua 1L',             'compra' => 0.35, 'venta' => 0.90, 'central' => [480, 100], 'norte' => [200, 50]],
-            ['nombre' => 'Refresco cola 33cl',  'compra' => 0.40, 'venta' => 1.10, 'central' => [240, 50],  'norte' => [120, 50]],
-            ['nombre' => 'Vino tinto crianza',  'compra' => 5.20, 'venta' => 12.90, 'central' => [36, 40],  'norte' => [20, 40]],
-            ['nombre' => 'Cerveza rubia 33cl',  'compra' => 0.30, 'venta' => 0.95, 'central' => [600, 100], 'norte' => [300, 100]],
-            ['nombre' => 'Zumo naranja 1L',     'compra' => 0.80, 'venta' => 1.80, 'central' => [150, 40],  'norte' => [60, 40]],
-            ['nombre' => 'Aceite oliva 1L',     'compra' => 3.10, 'venta' => 6.50, 'central' => [90, 30],   'norte' => [30, 30]],
-            ['nombre' => 'Leche entera 1L',     'compra' => 0.55, 'venta' => 1.05, 'central' => [300, 80],  'norte' => [100, 80]],
-            ['nombre' => 'Café molido 250g',    'compra' => 1.90, 'venta' => 3.80, 'central' => [120, 50],  'norte' => [40, 50]],
+            ['nombre' => 'Agua 1L',              'moneda' => 'CUP', 'compra' => 60,   'venta' => 150,  'central' => [480, 100], 'norte' => [200, 50]],
+            ['nombre' => 'Refresco cola 33cl',   'moneda' => 'CUP', 'compra' => 90,   'venta' => 220,  'central' => [240, 50],  'norte' => [120, 50]],
+            ['nombre' => 'Ron añejo 0.7L',       'moneda' => 'USD', 'compra' => 4.50, 'venta' => 9.00, 'central' => [36, 40],   'norte' => [20, 40]],
+            ['nombre' => 'Cerveza rubia 33cl',   'moneda' => 'CUP', 'compra' => 110,  'venta' => 250,  'central' => [600, 100], 'norte' => [300, 100]],
+            ['nombre' => 'Jugo de naranja 1L',   'moneda' => 'CUP', 'compra' => 130,  'venta' => 300,  'central' => [150, 40],  'norte' => [60, 40]],
+            ['nombre' => 'Aceite girasol 1L',    'moneda' => 'USD', 'compra' => 2.10, 'venta' => 4.50, 'central' => [90, 30],   'norte' => [30, 30]],
+            ['nombre' => 'Leche en polvo 1kg',   'moneda' => 'USD', 'compra' => 5.00, 'venta' => 9.50, 'central' => [300, 80],  'norte' => [100, 80]],
+            ['nombre' => 'Café molido 250g',     'moneda' => 'CUP', 'compra' => 350,  'venta' => 700,  'central' => [120, 50],  'norte' => [40, 50]],
         ];
 
         foreach ($catalogo as $fila) {
             $product = $createProduct->handle(
                 $admin,
-                ['nombre' => $fila['nombre'], 'precio_compra' => $fila['compra'], 'precio_venta' => $fila['venta']],
+                [
+                    'nombre' => $fila['nombre'],
+                    'precio_compra' => $fila['compra'],
+                    'precio_venta' => $fila['venta'],
+                    'currency_id' => $monedas[$fila['moneda']],
+                ],
                 $unidad->id,
             );
 
@@ -143,16 +156,16 @@ class DemoSeeder extends Seeder
         $ventas = [
             [$vendedorCentral, $central, $now->subHours(1),  [['product_id' => $id('Agua 1L'), 'cantidad' => 12]]],
             [$vendedorCentral, $central, $now->subHours(3),  [['product_id' => $id('Refresco cola 33cl'), 'cantidad' => 6], ['product_id' => $id('Cerveza rubia 33cl'), 'cantidad' => 24]]],
-            [$vendedorNorte,   $norte,   $now->subHours(5),  [['product_id' => $id('Zumo naranja 1L'), 'cantidad' => 10]]],
-            [$vendedorCentral, $central, $now->subDays(1),   [['product_id' => $id('Leche entera 1L'), 'cantidad' => 20]]],
+            [$vendedorNorte,   $norte,   $now->subHours(5),  [['product_id' => $id('Jugo de naranja 1L'), 'cantidad' => 10]]],
+            [$vendedorCentral, $central, $now->subDays(1),   [['product_id' => $id('Leche en polvo 1kg'), 'cantidad' => 20]]],
             [$vendedorNorte,   $norte,   $now->subDays(2),   [['product_id' => $id('Café molido 250g'), 'cantidad' => 5]]],
-            [$admin,           $central, $now->subDays(4),   [['product_id' => $id('Vino tinto crianza'), 'cantidad' => 2], ['product_id' => $id('Aceite oliva 1L'), 'cantidad' => 3]]],
+            [$admin,           $central, $now->subDays(4),   [['product_id' => $id('Ron añejo 0.7L'), 'cantidad' => 2], ['product_id' => $id('Aceite girasol 1L'), 'cantidad' => 3]]],
             [$vendedorCentral, $central, $now->subDays(6),   [['product_id' => $id('Agua 1L'), 'cantidad' => 24], ['product_id' => $id('Refresco cola 33cl'), 'cantidad' => 12]]],
             [$vendedorNorte,   $norte,   $now->subDays(8),   [['product_id' => $id('Cerveza rubia 33cl'), 'cantidad' => 30]]],
-            [$vendedorCentral, $central, $now->subDays(10),  [['product_id' => $id('Leche entera 1L'), 'cantidad' => 15]]],
-            [$admin,           $central, $now->subDays(20),  [['product_id' => $id('Aceite oliva 1L'), 'cantidad' => 5]]],
+            [$vendedorCentral, $central, $now->subDays(10),  [['product_id' => $id('Leche en polvo 1kg'), 'cantidad' => 15]]],
+            [$admin,           $central, $now->subDays(20),  [['product_id' => $id('Aceite girasol 1L'), 'cantidad' => 5]]],
             [$vendedorCentral, $central, $now->subDays(35),  [['product_id' => $id('Agua 1L'), 'cantidad' => 50]]],
-            [$vendedorNorte,   $norte,   $now->subDays(40),  [['product_id' => $id('Zumo naranja 1L'), 'cantidad' => 20]]],
+            [$vendedorNorte,   $norte,   $now->subDays(40),  [['product_id' => $id('Jugo de naranja 1L'), 'cantidad' => 20]]],
         ];
 
         foreach ($ventas as [$user, $warehouse, $fecha, $items]) {
@@ -165,8 +178,8 @@ class DemoSeeder extends Seeder
         }
 
         // Transferencias Central → Norte (auditan `transferencia.realizada`).
-        $transfer->handle($admin, $id('Vino tinto crianza'), $central->id, $norte->id, 4);
-        $transfer->handle($admin, $id('Aceite oliva 1L'), $central->id, $norte->id, 1, $caja->id);
+        $transfer->handle($admin, $id('Ron añejo 0.7L'), $central->id, $norte->id, 4);
+        $transfer->handle($admin, $id('Aceite girasol 1L'), $central->id, $norte->id, 1, $caja->id);
         $transfer->handle($admin, $id('Agua 1L'), $central->id, $norte->id, 100);
     }
 }

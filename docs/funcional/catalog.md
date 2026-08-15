@@ -11,6 +11,14 @@ llevar la cuenta del stock.
 - **Producto = nombre + dos precios.** `precio_compra` y `precio_venta`. El
   precio de compra solo lo ve el admin: nunca aparece en la respuesta que
   recibe el vendedor, en ningún endpoint.
+- **Cada producto tiene una moneda.** `currency_id` indica en qué moneda
+  están sus dos precios; omitirlo significa la moneda base (`CUP`). Así un
+  mismo catálogo puede tener lo local en CUP y lo importado en USD.
+  `GET /v1/currencies` lista las monedas disponibles con su tasa; el
+  vendedor también ve el código y el símbolo de cada precio, porque un
+  precio sin moneda no es un precio.
+- **Las tasas no se editan por API.** Se siembran y se administran en base
+  de datos. La moneda base tiene siempre tasa 1, por definición.
 - **Una unidad es un par (nombre, factor).** Por ejemplo, `unidad` con
   factor `1` o `caja` con factor `24`. El factor vive en la unidad, no en la
   relación con el producto: `caja` vale `24` para cualquier producto que la

@@ -21,6 +21,8 @@ class StoreProductRequest extends FormRequest
             'nombre' => ['required', 'string', 'max:255'],
             'precio_compra' => ['required', 'numeric', 'min:0'],
             'precio_venta' => ['required', 'numeric', 'min:0'],
+            // Omitirlo significa "moneda base", que es el caso normal.
+            'currency_id' => ['sometimes', 'nullable', 'integer', Rule::exists('currencies', 'id')->where('activo', true)],
             'base_unit_id' => [
                 'required', 'integer',
                 // La unidad base es, por definición, la de factor 1 (spec §4.1).
@@ -38,6 +40,7 @@ class StoreProductRequest extends FormRequest
     {
         return [
             'base_unit_id.exists' => 'La unidad base debe existir y tener factor 1.',
+            'currency_id.exists' => 'La moneda debe existir y estar activa.',
         ];
     }
 }

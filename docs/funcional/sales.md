@@ -17,9 +17,15 @@ llamada.
 - **Todo o nada.** Si un solo producto no tiene stock suficiente, se rechaza la
   venta entera y el inventario queda intacto. La respuesta lista qué productos
   fallaron, cuánto se pedía y cuánto había.
-- **Snapshot de precios.** Cada línea guarda el precio de venta y el de compra
-  del momento, así que cambiar la tarifa mañana no altera el histórico ni las
-  métricas de ayer.
+- **Snapshot de precios, moneda y tasa.** Cada línea guarda el precio de venta
+  y el de compra del momento, junto con la moneda del producto y la tasa de
+  cambio aplicada, así que ni cambiar la tarifa ni devaluar la moneda mañana
+  altera el histórico ni las métricas de ayer.
+- **El total va en moneda base.** Los precios unitarios de cada línea se
+  muestran en la moneda con la que se vendió (`moneda` y `tasa_cambio` en la
+  línea), pero `subtotal` y `total` están convertidos a la moneda base
+  (`CUP`). Así una venta que mezcla productos en CUP y en USD tiene un total
+  con sentido, y las métricas suman importes comparables.
 
 ## 3. Flujos de uso
 

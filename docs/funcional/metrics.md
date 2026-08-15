@@ -14,7 +14,11 @@ no hay tablas de agregados que puedan quedar desincronizadas.
 - **Tres periodos.** `daily` (el día indicado, serie por hora), `weekly`
   (semana ISO de lunes a domingo, serie por día) y `monthly` (mes natural,
   serie por día). Sin `date` se usa el momento actual; los cortes respetan
-  la zona horaria de la aplicación (`Europe/Madrid`).
+  la zona horaria de la aplicación (`America/Havana`).
+- **Todas las cifras van en moneda base.** El informe incluye `moneda` con
+  su código (`CUP` por defecto). Los importes de productos en otra moneda se
+  convierten con la tasa: los de ventas con la tasa congelada en cada línea,
+  los de inventario con la tasa vigente del producto.
 - **El vendedor solo puede pedir `weekly`.** Cualquier otro periodo devuelve
   `403`. Además siempre ve su propio almacén: el middleware fuerza
   `warehouse_id` al suyo, igual que en ventas.
