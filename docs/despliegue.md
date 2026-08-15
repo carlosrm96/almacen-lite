@@ -91,14 +91,27 @@ conocidas.
 ## 6. Crear el primer administrador
 
 Ningún seeder crea usuarios, así que este paso es imprescindible para poder
-entrar:
+entrar. Hazlo desde la propia API, con `POST /v1/register`:
+
+```bash
+curl -X POST https://tu-dominio.com/v1/register \
+  -H 'Content-Type: application/json' \
+  -d '{"name":"Administrador","email":"admin@tu-dominio.com","password":"una-password-segura","password_confirmation":"una-password-segura"}'
+```
+
+Devuelve `201` con el token ya listo. **Es una ruta de un solo uso**: en
+cuanto existe un usuario responde `403`, así que hazlo nada más desplegar y
+antes de exponer la URL. A partir de ahí los usuarios se crean con
+`POST /v1/users` desde la cuenta de admin.
+
+Si prefieres no exponer ese paso por HTTP, el equivalente por consola:
 
 ```bash
 php artisan tinker
 ```
 
 ```php
-$u = App\Modules\Access\Models\User::create([
+$u = App\Models\User::create([
     'name' => 'Administrador',
     'email' => 'admin@tu-dominio.com',
     'password' => 'una-password-segura',   // el cast 'hashed' la hashea sola

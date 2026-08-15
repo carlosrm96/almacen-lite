@@ -89,11 +89,17 @@ class UserManagementTest extends TestCase
         ])->assertForbidden();
     }
 
-    public function test_no_existe_registro_publico(): void
+    public function test_el_registro_publico_se_cierra_con_el_sistema_ya_en_marcha(): void
     {
+        // El registro solo sirve para crear el primer admin; con usuarios ya
+        // dados de alta, la única vía es `POST /v1/users`. Cobertura completa
+        // en RegisterTest.
+        $this->actingAsRole('admin');
+
         $this->postJson('/v1/register', [
-            'name' => 'X', 'email' => 'x@x.test', 'password' => 'secreto123',
-        ])->assertNotFound();
+            'name' => 'X', 'email' => 'x@x.test',
+            'password' => 'secreto123', 'password_confirmation' => 'secreto123',
+        ])->assertForbidden();
     }
 
     public function test_el_admin_puede_actualizar_y_borrar_usuarios(): void

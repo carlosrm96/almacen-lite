@@ -25,5 +25,11 @@ class AppServiceProvider extends ServiceProvider
         RateLimiter::for('api', function (Request $request) {
             return Limit::perMinute(60)->by($request->user()?->id ?: $request->ip());
         });
+
+        // Login y registro: sin usuario autenticado al que limitar, solo IP, y
+        // más estrecho que el global porque son las puertas de entrada.
+        RateLimiter::for('auth', function (Request $request) {
+            return Limit::perMinute(10)->by($request->ip());
+        });
     }
 }

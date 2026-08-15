@@ -92,6 +92,12 @@ API Resources, nunca modelos crudos; autorización con Policies.
   resuelve con ramas explícitas en los Resources (`ProductResource`,
   `SaleItemResource`) y con `MetricsRoleFilter`, no con campos condicionales
   sueltos: un campo nuevo no debe filtrarse al vendedor por descuido.
+- **`POST /v1/register` es de un solo uso.** Crea el admin dueño de la
+  instalación y se cierra con `403` en cuanto existe cualquier usuario. Es el
+  registro de `almacen-backend` adaptado: allí cada registro crea su propia
+  empresa aislada, aquí no hay multi-empresa, así que un registro siempre
+  abierto daría acceso total a los almacenes de otro. No acepta `rol` ni
+  `warehouse_id` del cliente.
 - **El vendedor está siempre atado a un almacén** y solo puede pedir
   métricas `weekly`. El middleware `scope.warehouse` fuerza su
   `warehouse_id` e ignora el que venga en la petición, en vez de rechazarla.
