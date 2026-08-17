@@ -20,7 +20,9 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
+        // Solo lo global de la instalación. Las monedas ya no van aquí: son de
+        // cada empresa y se siembran al registrarse (ver
+        // docs/superpowers/specs/2026-08-17-multi-empresa-y-registro-design.md).
         $this->call(RolesAndPermissionsSeeder::class);
-        $this->call(CurrenciesSeeder::class);
     }
 }

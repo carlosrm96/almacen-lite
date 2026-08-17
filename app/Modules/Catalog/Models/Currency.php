@@ -2,6 +2,8 @@
 
 namespace App\Modules\Catalog\Models;
 
+use App\Modules\Tenancy\Models\Concerns\BelongsToCompany;
+use App\Modules\Tenancy\Support\CurrentCompany;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
@@ -15,6 +17,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  */
 class Currency extends Model
 {
+    use BelongsToCompany;
+
     /** Clave del binding «scoped» donde se memoriza la moneda base. */
     public const BASE_BINDING = 'almacen.moneda.base';
 
@@ -51,7 +55,19 @@ class Currency extends Model
      */
     public static function base(): Currency
     {
-        return app()->make(self::BASE_BINDING);
+        $base = app()->make(self::BASE_BINDING);
+
+        // El binding vive lo que la petición, y la empresa de contexto también,
+        // así que normalmente basta. Pero un mismo proceso puede cambiar de
+        // empresa (tests, consola): la base memorizada de otra empresa daría
+        // una moneda ajena, así que se descarta y se resuelve de nuevo.
+        if ($base->exists && $base->company_id !== app(CurrentCompany::class)->id()) {
+            self::olvidarBase();
+
+            $base = app()->make(self::BASE_BINDING);
+        }
+
+        return $base;
     }
 
     public static function olvidarBase(): void

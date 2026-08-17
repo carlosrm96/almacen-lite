@@ -7,14 +7,18 @@ Guía corta para trabajar en `almacen-lite`. Léela antes de tocar código.
 API REST (sin frontend en este repo) para gestionar varios almacenes:
 inventario por almacén, ventas con descuento automático de stock,
 transferencias entre almacenes, métricas de ventas/inventario y auditoría de
-movimientos. Es una copia **reducida** de `almacen-backend` (un WMS+ERP
-completo): mismas convenciones, dominio mucho más pequeño — 6 módulos y 12
-tablas, sin multi-empresa, sin ubicaciones, sin lotes, sin ERP.
+movimientos. Cada negocio que se registra tiene lo suyo y no ve lo de nadie
+más. Es una copia **reducida** de `almacen-backend` (un WMS+ERP completo):
+mismas convenciones, dominio mucho más pequeño — 7 módulos y 13 tablas, con
+multi-empresa en su forma mínima, pero sin ubicaciones, sin lotes y sin ERP.
 
 Antes de asumir cómo funciona algo, lee el spec y el plan:
 
 - **Diseño:** [`docs/superpowers/specs/2026-08-08-almacen-lite-design.md`](docs/superpowers/specs/2026-08-08-almacen-lite-design.md)
+  (su §"Fuera del alcance" descartaba la multi-empresa; ese punto lo revoca el
+  spec de abajo)
 - **Monedas y zona horaria (Cuba):** [`docs/superpowers/specs/2026-08-14-monedas-y-zona-horaria-cuba-design.md`](docs/superpowers/specs/2026-08-14-monedas-y-zona-horaria-cuba-design.md)
+- **Multi-empresa y registro público:** [`docs/superpowers/specs/2026-08-17-multi-empresa-y-registro-design.md`](docs/superpowers/specs/2026-08-17-multi-empresa-y-registro-design.md)
 - **Plan de implementación (orden de las tareas, dependencias):** [`docs/superpowers/plans/2026-08-08-almacen-lite.md`](docs/superpowers/plans/2026-08-08-almacen-lite.md)
 - **Guía funcional por módulo (para cliente/frontend, no repetir aquí):** [`docs/funcional/README.md`](docs/funcional/README.md)
 
@@ -56,6 +60,7 @@ desde `routes/api.php` bajo el prefijo `/v1`.
 
 | Módulo | Responsabilidad |
 |---|---|
+| `Tenancy` | Empresas, registro público y aislamiento entre negocios |
 | `Access` | Login por token, usuarios, roles y permisos |
 | `Warehouses` | Almacenes, stock por almacén, transferencias |
 | `Catalog` | Productos, unidades, asignación unidad↔producto, monedas |
@@ -81,7 +86,9 @@ API Resources, nunca modelos crudos; autorización con Policies.
   devaluar la moneda mañana no debe alterar el histórico ni las métricas de
   ayer.
 - **La moneda base tiene tasa 1**, por definición, igual que la unidad base
-  tiene factor 1. `products.currency_id` nulo significa moneda base.
+  tiene factor 1. `products.currency_id` nulo significa moneda base. Las
+  monedas son de cada empresa y se le siembran al registrarse; `ALMACEN_TASA_USD`
+  es solo el valor de partida, no la tasa de la instalación.
 - **Los importes agregados se guardan en moneda base.** `sales.total` y
   `sale_items.subtotal` van convertidos; los `precio_*_unit` se quedan en la
   moneda del producto. Es lo que permite que `SUM(total)` siga siendo válido
@@ -92,12 +99,23 @@ API Resources, nunca modelos crudos; autorización con Policies.
   resuelve con ramas explícitas en los Resources (`ProductResource`,
   `SaleItemResource`) y con `MetricsRoleFilter`, no con campos condicionales
   sueltos: un campo nuevo no debe filtrarse al vendedor por descuido.
-- **`POST /v1/register` es de un solo uso.** Crea el admin dueño de la
-  instalación y se cierra con `403` en cuanto existe cualquier usuario. Es el
-  registro de `almacen-backend` adaptado: allí cada registro crea su propia
-  empresa aislada, aquí no hay multi-empresa, así que un registro siempre
-  abierto daría acceso total a los almacenes de otro. No acepta `rol` ni
-  `warehouse_id` del cliente.
+- **`POST /v1/register` es público y repetible:** crea una empresa y su admin
+  dueño. Lo que hace seguro dejarlo abierto es el aislamiento, no una guarda en
+  el endpoint. No acepta `rol` ni `warehouse_id` del cliente.
+- **Todo lo del dominio lleva `company_id` y `BelongsToCompany`.** El trait
+  filtra las lecturas por la empresa de contexto y rellena `company_id` al
+  crear; `company_id` no es fillable en ningún modelo. Un modelo nuevo sin el
+  trait es una fuga entre negocios, no un descuido menor.
+- **Toda regla `exists`/`unique` sobre una tabla con `company_id` va por
+  `ScopesValidationToCompany`.** Las reglas nativas consultan la tabla en crudo
+  y se saltan el scope: un `exists:warehouses,id` sin acotar acepta el almacén
+  de otro negocio. La excepción es `users.email`, único global a propósito.
+- **Un recurso de otra empresa responde `404`, no `403`.** Lo hace el scope
+  solo; confirmar que existe ya sería una fuga.
+- **El contexto de empresa se resuelve del token, nunca de la petición.**
+  `ForgetCurrentCompany` lo limpia al principio de cada petición (resolver el
+  token pasa por el scope de `User`) y `tenant` lo fija tras `auth:sanctum`,
+  con prioridad explícita para ir por delante de `SubstituteBindings`.
 - **El vendedor está siempre atado a un almacén** y solo puede pedir
   métricas `weekly`. El middleware `scope.warehouse` fuerza su
   `warehouse_id` e ignora el que venga en la petición, en vez de rechazarla.

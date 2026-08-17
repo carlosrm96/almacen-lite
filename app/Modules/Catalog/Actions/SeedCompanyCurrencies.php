@@ -1,0 +1,44 @@
+<?php
+
+namespace App\Modules\Catalog\Actions;
+
+use App\Modules\Catalog\Models\Currency;
+
+/**
+ * Siembra las monedas con las que arranca un negocio.
+ *
+ * Idempotente: no pisa una moneda ya existente, para no deshacer una tasa
+ * ajustada a mano. Trabaja sobre la empresa de contexto — la consulta pasa por
+ * `CompanyScope` y el `company_id` lo rellena `BelongsToCompany`.
+ *
+ * Ver docs/superpowers/specs/2026-08-14-monedas-y-zona-horaria-cuba-design.md
+ */
+class SeedCompanyCurrencies
+{
+    /** @var array<string, array{nombre: string, simbolo: string}> */
+    private const MONEDAS = [
+        'CUP' => ['nombre' => 'Peso cubano', 'simbolo' => '$'],
+        'USD' => ['nombre' => 'Dólar estadounidense', 'simbolo' => 'US$'],
+    ];
+
+    public function handle(): void
+    {
+        $base = (string) config('almacen.moneda_base');
+
+        foreach (self::MONEDAS as $codigo => $datos) {
+            $esBase = $codigo === $base;
+
+            Currency::firstOrCreate(['codigo' => $codigo], [
+                ...$datos,
+                // La moneda base tiene tasa 1 por definición; el modelo lo
+                // fuerza igualmente al guardar.
+                'tasa' => $esBase ? 1.0 : (float) (config("almacen.tasas.{$codigo}") ?? 1.0),
+                'es_base' => $esBase,
+                'activo' => true,
+            ]);
+        }
+
+        // El binding «scoped» pudo resolverse antes de que existiera la fila.
+        Currency::olvidarBase();
+    }
+}

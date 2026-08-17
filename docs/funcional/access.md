@@ -2,19 +2,17 @@
 
 ## 1. ¿Para qué sirve?
 
-Autenticar a quien usa la API y gestionar el equipo que trabaja con ella. Hay
-un registro de puesta en marcha para crear el primer administrador; a partir
-de ahí solo el admin da de alta usuarios, y cada uno entra con un token que
-identifica su rol y, si es vendedor, su almacén.
+Autenticar a quien usa la API y gestionar el equipo que trabaja con ella. El
+dueño del negocio llega aquí ya registrado (ver [Empresa y
+registro](tenancy.md)); desde entonces es él quien da de alta a los suyos, y
+cada uno entra con un token que identifica su rol y, si es vendedor, su
+almacén.
 
 ## 2. Conceptos clave
 
-- **Registro de puesta en marcha.** `POST /v1/register` crea el usuario
-  administrador de la instalación y devuelve ya su token. **Solo funciona
-  mientras no exista ningún usuario**: en cuanto hay uno, responde `403` y las
-  altas pasan a hacerse desde `POST /v1/users`. No es un registro abierto
-  como el de `almacen-backend` porque aquí no hay multi-empresa que aísle a
-  cada registrado: quien se registra manda sobre todos los almacenes.
+- **Las altas las hace el admin.** `POST /v1/users` crea usuarios dentro de su
+  empresa. `POST /v1/register` existe, y es público, pero lo que crea es otro
+  negocio aparte, no un usuario de este.
 - **Login por token.** `POST /v1/login` valida email y contraseña y devuelve
   un token de Sanctum. Ese token va en cada petición siguiente, como
   `Authorization: Bearer <token>`.
@@ -36,9 +34,8 @@ identifica su rol y, si es vendedor, su almacén.
 
 ## 3. Flujos de uso
 
-0. En una instalación recién desplegada y todavía sin usuarios, alguien se
-   registra con `POST /v1/register` y queda como `admin`, con su token ya
-   listo. Es un paso que solo ocurre una vez.
+0. El dueño registra su negocio con `POST /v1/register` y queda como `admin`,
+   con su token ya listo (ver [Empresa y registro](tenancy.md)).
 1. El usuario entra con `POST /v1/login` (email + password) y recibe el token
    y sus propios datos (rol, almacén si aplica).
 2. El cliente guarda el token y lo envía en cada petición posterior.
@@ -53,7 +50,7 @@ identifica su rol y, si es vendedor, su almacén.
 
 | Acción | Método y ruta | Permiso |
 |---|---|---|
-| Registrar el primer admin | `POST /v1/register` | público (solo sin usuarios) |
+| Registrar un negocio | `POST /v1/register` | público — ver [Empresa y registro](tenancy.md) |
 | Login | `POST /v1/login` | público |
 | Logout | `POST /v1/logout` | autenticado |
 | Usuario autenticado | `GET /v1/me` | autenticado |
@@ -62,20 +59,6 @@ identifica su rol y, si es vendedor, su almacén.
 | Ver usuario | `GET /v1/users/{id}` | `users.view` |
 | Editar usuario | `PUT /v1/users/{id}` | `users.update` |
 | Borrar usuario | `DELETE /v1/users/{id}` | `users.delete` |
-
-El cuerpo del registro:
-
-```json
-{
-  "name": "Ana",
-  "email": "ana@almacen.test",
-  "password": "secreto123",
-  "password_confirmation": "secreto123"
-}
-```
-
-Devuelve `201` con `{"token": "...", "user": {...}}`. No acepta `rol` ni
-`warehouse_id`: el registrado es siempre `admin` y un admin no lleva almacén.
 
 El cuerpo del alta:
 
@@ -95,12 +78,10 @@ ignora. Un login con credenciales incorrectas devuelve `422` con el error en
 
 ## 5. Qué no hace todavía
 
-- El registro solo sirve para el primer admin: no hay auto-alta de vendedores
-  ni cola de aprobación.
+- No hay auto-alta de vendedores ni cola de aprobación: al equipo lo da de alta
+  el admin.
 - No hay recuperación de contraseña por email ni verificación de email.
 - No hay más roles que `admin` y `vendedor`, ni permisos configurables desde
   la API.
-- No hay multi-empresa: todos los usuarios comparten el mismo espacio de
-  almacenes y productos.
 - Un usuario tiene como mucho un almacén asignado; no puede pertenecer a
   varios a la vez.

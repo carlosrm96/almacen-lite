@@ -89,17 +89,22 @@ class UserManagementTest extends TestCase
         ])->assertForbidden();
     }
 
-    public function test_el_registro_publico_se_cierra_con_el_sistema_ya_en_marcha(): void
+    public function test_el_registro_publico_crea_otro_negocio_no_un_usuario_de_este(): void
     {
-        // El registro solo sirve para crear el primer admin; con usuarios ya
-        // dados de alta, la única vía es `POST /v1/users`. Cobertura completa
-        // en RegisterTest.
-        $this->actingAsRole('admin');
+        // El registro sigue abierto con el sistema en marcha, pero lo que crea
+        // es una empresa aparte: no es una puerta trasera para colarse en esta.
+        // Cobertura completa en Tests\Feature\Tenancy\RegisterTest.
+        $admin = $this->actingAsRole('admin');
 
         $this->postJson('/v1/register', [
-            'name' => 'X', 'email' => 'x@x.test',
+            'empresa' => 'Otro Negocio', 'name' => 'X', 'email' => 'x@x.test',
             'password' => 'secreto123', 'password_confirmation' => 'secreto123',
-        ])->assertForbidden();
+        ])->assertCreated();
+
+        $this->getJson('/v1/users')
+            ->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.id', $admin->id);
     }
 
     public function test_el_admin_puede_actualizar_y_borrar_usuarios(): void

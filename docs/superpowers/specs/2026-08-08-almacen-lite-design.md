@@ -4,6 +4,13 @@
 **Estado:** aprobado
 **Origen:** copia reducida de `almacen-backend` (WMS+ERP completo, 18 módulos, 611 archivos PHP, 94 migraciones).
 
+> **Revocado en parte (2026-08-17).** Este documento da por descartada la
+> multi-empresa y por inexistente el registro público (§1 «Fuera del alcance» y
+> §5 regla 1). Ambas cosas volvieron: cada registro crea ahora su propia
+> empresa aislada. Ver
+> [2026-08-17-multi-empresa-y-registro-design.md](2026-08-17-multi-empresa-y-registro-design.md).
+> El resto del documento sigue vigente.
+
 ---
 
 ## 1. Objetivo y alcance

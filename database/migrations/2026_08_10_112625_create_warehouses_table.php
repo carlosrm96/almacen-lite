@@ -13,9 +13,14 @@ return new class extends Migration
     {
         Schema::create('warehouses', function (Blueprint $table): void {
             $table->id();
-            $table->string('nombre')->unique();
+            $table->foreignId('company_id')->constrained('companies')->cascadeOnDelete();
+            $table->string('nombre');
             $table->boolean('activo')->default(true);
             $table->timestamps();
+
+            // Único por empresa, no global: que un negocio llame «Central» a su
+            // almacén no puede impedir que otro haga lo mismo.
+            $table->unique(['company_id', 'nombre']);
         });
     }
 

@@ -2,11 +2,13 @@
 
 namespace App\Modules\Catalog\Http\Requests;
 
+use App\Modules\Tenancy\Support\ScopesValidationToCompany;
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Validation\Rule;
 
 class StoreProductRequest extends FormRequest
 {
+    use ScopesValidationToCompany;
+
     public function authorize(): bool
     {
         return $this->user()?->can('products.create') ?? false;
@@ -22,13 +24,13 @@ class StoreProductRequest extends FormRequest
             'precio_compra' => ['required', 'numeric', 'min:0'],
             'precio_venta' => ['required', 'numeric', 'min:0'],
             // Omitirlo significa "moneda base", que es el caso normal.
-            'currency_id' => ['sometimes', 'nullable', 'integer', Rule::exists('currencies', 'id')->where('activo', true)],
+            'currency_id' => ['sometimes', 'nullable', 'integer', $this->companyScopedExists('currencies', 'id')->where('activo', true)],
             'base_unit_id' => [
                 'required', 'integer',
                 // La unidad base es, por definición, la de factor 1 (spec §4.1).
-                Rule::exists('units', 'id')->where('factor', 1),
+                $this->companyScopedExists('units', 'id')->where('factor', 1),
             ],
-            'warehouse_id' => ['required_with:cantidad', 'integer', 'exists:warehouses,id'],
+            'warehouse_id' => ['required_with:cantidad', 'integer', $this->companyScopedExists('warehouses', 'id')],
             'cantidad' => ['required_with:warehouse_id', 'numeric', 'min:0'],
         ];
     }

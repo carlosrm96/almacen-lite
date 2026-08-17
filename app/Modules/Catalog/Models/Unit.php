@@ -2,6 +2,7 @@
 
 namespace App\Modules\Catalog\Models;
 
+use App\Modules\Tenancy\Models\Concerns\BelongsToCompany;
 use Database\Factories\UnitFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -10,7 +11,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class Unit extends Model
 {
     /** @use HasFactory<UnitFactory> */
-    use HasFactory;
+    use BelongsToCompany, HasFactory;
 
     protected $fillable = ['nombre', 'factor'];
 

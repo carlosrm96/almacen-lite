@@ -17,6 +17,7 @@ class RolesAndPermissionsSeeder extends Seeder
      */
     private const ROLE_PERMISSIONS = [
         RoleEnum::Admin->value => [
+            'company.view', 'company.update',
             'users.view', 'users.create', 'users.update', 'users.delete',
             'warehouses.view', 'warehouses.create', 'warehouses.update', 'warehouses.delete',
             'units.view', 'units.create', 'units.update', 'units.delete',
@@ -28,6 +29,8 @@ class RolesAndPermissionsSeeder extends Seeder
             'audit.view',
         ],
         RoleEnum::Vendedor->value => [
+            // Ver el negocio al que pertenece, no cambiarlo.
+            'company.view',
             'products.view',
             'sales.view', 'sales.create',
             'metrics.view',

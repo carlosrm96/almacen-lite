@@ -4,11 +4,14 @@ namespace App\Modules\Access\Http\Requests;
 
 use App\Models\User;
 use App\Modules\Access\Enums\Role;
+use App\Modules\Tenancy\Support\ScopesValidationToCompany;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
 class UpdateUserRequest extends FormRequest
 {
+    use ScopesValidationToCompany;
+
     /**
      * Comprueba el permiso aquí (no solo en el controlador): el Form
      * Request se valida al resolver los parámetros del método, antes de
@@ -40,7 +43,7 @@ class UpdateUserRequest extends FormRequest
             'rol' => ['sometimes', Rule::enum(Role::class)],
             'warehouse_id' => [
                 Rule::requiredIf(fn (): bool => $rolFinal === Role::Vendedor->value),
-                'nullable', 'integer', 'exists:warehouses,id',
+                'nullable', 'integer', $this->companyScopedExists('warehouses', 'id'),
             ],
         ];
     }

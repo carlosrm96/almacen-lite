@@ -10,6 +10,8 @@ use App\Modules\Catalog\Models\Product;
 use App\Modules\Catalog\Models\Unit;
 use App\Modules\Sales\Actions\RegisterSale;
 use App\Modules\Sales\Models\Sale;
+use App\Modules\Tenancy\Models\Company;
+use App\Modules\Tenancy\Support\CurrentCompany;
 use App\Modules\Warehouses\Actions\SetProductStock;
 use App\Modules\Warehouses\Actions\TransferStock;
 use App\Modules\Warehouses\Models\Warehouse;
@@ -28,6 +30,12 @@ class DemoSeeder extends Seeder
     public function run(): void
     {
         $this->call(RolesAndPermissionsSeeder::class);
+
+        // Todo lo que sigue cuelga de una empresa: fijarla como contexto hace
+        // que `BelongsToCompany` rellene el `company_id` de cada fila y que las
+        // consultas idempotentes (`firstOrCreate`) miren solo dentro de ella.
+        $this->seedEmpresa();
+
         $this->call(CurrenciesSeeder::class);
 
         [$central, $norte] = $this->seedAlmacenes();
@@ -46,6 +54,13 @@ class DemoSeeder extends Seeder
         if (Sale::count() === 0) {
             $this->seedMovimientos($admin, $vendedorCentral, $vendedorNorte, $central, $norte, $unidad, $caja);
         }
+    }
+
+    private function seedEmpresa(): void
+    {
+        $company = Company::firstOrCreate(['nombre' => 'Negocio Demo']);
+
+        app(CurrentCompany::class)->set($company);
     }
 
     /** @return array{0: Warehouse, 1: Warehouse} */

@@ -13,9 +13,13 @@ return new class extends Migration
     {
         Schema::create('units', function (Blueprint $table): void {
             $table->id();
-            $table->string('nombre')->unique();
+            $table->foreignId('company_id')->constrained('companies')->cascadeOnDelete();
+            $table->string('nombre');
             $table->decimal('factor', 14, 3);
             $table->timestamps();
+
+            // Cada negocio tiene sus unidades: único por empresa.
+            $table->unique(['company_id', 'nombre']);
         });
     }
 

@@ -3,11 +3,14 @@
 namespace App\Modules\Access\Http\Requests;
 
 use App\Modules\Access\Enums\Role;
+use App\Modules\Tenancy\Support\ScopesValidationToCompany;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
 class StoreUserRequest extends FormRequest
 {
+    use ScopesValidationToCompany;
+
     /**
      * Comprueba el permiso aquí (no solo en el controlador): el Form
      * Request se valida al resolver los parámetros del método, antes de
@@ -27,13 +30,15 @@ class StoreUserRequest extends FormRequest
     {
         return [
             'name' => ['required', 'string', 'max:255'],
+            // Único global a propósito, no por empresa: el login ocurre antes
+            // de saber de qué empresa es quien entra.
             'email' => ['required', 'email', 'max:255', 'unique:users,email'],
             'password' => ['required', 'string', 'min:8'],
             'rol' => ['required', Rule::enum(Role::class)],
             // Un vendedor sin almacén es un estado inválido (spec §5, regla 2).
             'warehouse_id' => [
                 Rule::requiredIf(fn (): bool => $this->input('rol') === Role::Vendedor->value),
-                'nullable', 'integer', 'exists:warehouses,id',
+                'nullable', 'integer', $this->companyScopedExists('warehouses', 'id'),
             ],
         ];
     }

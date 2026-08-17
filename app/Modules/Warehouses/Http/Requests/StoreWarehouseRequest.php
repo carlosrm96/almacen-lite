@@ -2,10 +2,13 @@
 
 namespace App\Modules\Warehouses\Http\Requests;
 
+use App\Modules\Tenancy\Support\ScopesValidationToCompany;
 use Illuminate\Foundation\Http\FormRequest;
 
 class StoreWarehouseRequest extends FormRequest
 {
+    use ScopesValidationToCompany;
+
     /**
      * Comprueba el permiso aquí (no solo en el controlador): el Form
      * Request se valida al resolver los parámetros del método, antes de
@@ -24,7 +27,7 @@ class StoreWarehouseRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'nombre' => ['required', 'string', 'max:255', 'unique:warehouses,nombre'],
+            'nombre' => ['required', 'string', 'max:255', $this->companyScopedUnique('warehouses', 'nombre')],
             'activo' => ['sometimes', 'boolean'],
         ];
     }

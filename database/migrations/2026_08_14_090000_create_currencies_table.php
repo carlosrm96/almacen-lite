@@ -13,7 +13,10 @@ return new class extends Migration
     {
         Schema::create('currencies', function (Blueprint $table): void {
             $table->id();
-            $table->string('codigo', 3)->unique();
+            // Las monedas son de cada negocio: en Cuba la tasa del USD la fija
+            // el negocio y cambia por su cuenta, no la fija el despliegue.
+            $table->foreignId('company_id')->constrained('companies')->cascadeOnDelete();
+            $table->string('codigo', 3);
             $table->string('nombre');
             $table->string('simbolo', 8);
             // Cuántas unidades de la moneda base vale 1 unidad de esta moneda.
@@ -22,6 +25,8 @@ return new class extends Migration
             $table->boolean('es_base')->default(false);
             $table->boolean('activo')->default(true);
             $table->timestamps();
+
+            $table->unique(['company_id', 'codigo']);
         });
     }
 

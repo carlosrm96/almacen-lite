@@ -2,11 +2,13 @@
 
 namespace App\Modules\Catalog\Http\Requests;
 
+use App\Modules\Tenancy\Support\ScopesValidationToCompany;
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Validation\Rule;
 
 class UpdateProductRequest extends FormRequest
 {
+    use ScopesValidationToCompany;
+
     public function authorize(): bool
     {
         return $this->user()?->can('products.update') ?? false;
@@ -21,7 +23,7 @@ class UpdateProductRequest extends FormRequest
             'nombre' => ['sometimes', 'string', 'max:255'],
             'precio_compra' => ['sometimes', 'numeric', 'min:0'],
             'precio_venta' => ['sometimes', 'numeric', 'min:0'],
-            'currency_id' => ['sometimes', 'nullable', 'integer', Rule::exists('currencies', 'id')->where('activo', true)],
+            'currency_id' => ['sometimes', 'nullable', 'integer', $this->companyScopedExists('currencies', 'id')->where('activo', true)],
         ];
     }
 

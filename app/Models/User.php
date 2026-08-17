@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Modules\Access\Enums\Role;
+use App\Modules\Tenancy\Models\Concerns\BelongsToCompany;
 use App\Modules\Warehouses\Models\Warehouse;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -15,7 +16,7 @@ use Spatie\Permission\Traits\HasRoles;
 class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
-    use HasApiTokens, HasFactory, HasRoles, Notifiable;
+    use BelongsToCompany, HasApiTokens, HasFactory, HasRoles, Notifiable;
 
     protected $fillable = ['name', 'email', 'password', 'warehouse_id'];
 

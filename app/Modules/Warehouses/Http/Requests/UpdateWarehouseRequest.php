@@ -2,11 +2,13 @@
 
 namespace App\Modules\Warehouses\Http\Requests;
 
+use App\Modules\Tenancy\Support\ScopesValidationToCompany;
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Validation\Rule;
 
 class UpdateWarehouseRequest extends FormRequest
 {
+    use ScopesValidationToCompany;
+
     /**
      * Comprueba el permiso aquí (no solo en el controlador): el Form
      * Request se valida al resolver los parámetros del método, antes de
@@ -25,7 +27,7 @@ class UpdateWarehouseRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'nombre' => ['sometimes', 'string', 'max:255', Rule::unique('warehouses', 'nombre')->ignore($this->route('warehouse'))],
+            'nombre' => ['sometimes', 'string', 'max:255', $this->companyScopedUnique('warehouses', 'nombre')->ignore($this->route('warehouse'))],
             'activo' => ['sometimes', 'boolean'],
         ];
     }
