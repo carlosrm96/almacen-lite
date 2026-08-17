@@ -1,18 +1,17 @@
 <?php
 
 use App\Modules\Access\Http\Controllers\AuthController;
-use App\Modules\Access\Http\Controllers\RegisterController;
 use App\Modules\Access\Http\Controllers\UserController;
 use Illuminate\Support\Facades\Route;
 
-// Las dos únicas rutas públicas de la API, y las dos que se prestan a fuerza
-// bruta: van con un limitador más estrecho que el global.
+// La única ruta pública de este módulo, y de las que más se prestan a fuerza
+// bruta: va con un limitador más estrecho que el global. El registro es la
+// otra, y vive en Tenancy: lo que crea es una empresa.
 Route::middleware('throttle:auth')->group(function (): void {
     Route::post('login', [AuthController::class, 'login']);
-    Route::post('register', [RegisterController::class, 'store']);
 });
 
-Route::middleware('auth:sanctum')->group(function (): void {
+Route::middleware(['auth:sanctum', 'tenant'])->group(function (): void {
     Route::post('logout', [AuthController::class, 'logout']);
     Route::get('me', [AuthController::class, 'me']);
 

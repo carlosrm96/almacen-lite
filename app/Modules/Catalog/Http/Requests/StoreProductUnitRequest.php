@@ -3,11 +3,13 @@
 namespace App\Modules\Catalog\Http\Requests;
 
 use App\Modules\Catalog\Models\Product;
+use App\Modules\Tenancy\Support\ScopesValidationToCompany;
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Validation\Rule;
 
 class StoreProductUnitRequest extends FormRequest
 {
+    use ScopesValidationToCompany;
+
     public function authorize(): bool
     {
         return $this->user()?->can('products.update') ?? false;
@@ -26,8 +28,8 @@ class StoreProductUnitRequest extends FormRequest
 
         return [
             'unit_id' => [
-                'required', 'integer', 'exists:units,id',
-                Rule::unique('product_units', 'unit_id')
+                'required', 'integer', $this->companyScopedExists('units', 'id'),
+                $this->companyScopedUnique('product_units', 'unit_id')
                     ->where('product_id', $product?->id),
             ],
         ];

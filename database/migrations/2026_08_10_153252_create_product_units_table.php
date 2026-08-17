@@ -13,6 +13,7 @@ return new class extends Migration
     {
         Schema::create('product_units', function (Blueprint $table): void {
             $table->id();
+            $table->foreignId('company_id')->constrained('companies')->cascadeOnDelete();
             $table->foreignId('product_id')->constrained('products')->cascadeOnDelete();
             $table->foreignId('unit_id')->constrained('units')->cascadeOnDelete();
             $table->boolean('is_base')->default(false);

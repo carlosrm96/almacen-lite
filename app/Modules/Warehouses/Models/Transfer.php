@@ -4,11 +4,14 @@ namespace App\Modules\Warehouses\Models;
 
 use App\Models\User;
 use App\Modules\Catalog\Models\Product;
+use App\Modules\Tenancy\Models\Concerns\BelongsToCompany;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Transfer extends Model
 {
+    use BelongsToCompany;
+
     public const UPDATED_AT = null;
 
     protected $fillable = [

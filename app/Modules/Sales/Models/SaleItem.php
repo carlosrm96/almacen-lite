@@ -4,11 +4,14 @@ namespace App\Modules\Sales\Models;
 
 use App\Modules\Catalog\Models\Product;
 use App\Modules\Catalog\Models\Unit;
+use App\Modules\Tenancy\Models\Concerns\BelongsToCompany;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class SaleItem extends Model
 {
+    use BelongsToCompany;
+
     protected $fillable = [
         'sale_id', 'product_id', 'unit_id', 'cantidad', 'cantidad_base',
         'precio_venta_unit', 'precio_compra_unit', 'moneda_codigo', 'tasa_cambio', 'subtotal',

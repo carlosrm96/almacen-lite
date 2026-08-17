@@ -3,12 +3,14 @@
 namespace App\Modules\Warehouses\Http\Requests;
 
 use App\Modules\Catalog\Models\ProductUnit;
+use App\Modules\Tenancy\Support\ScopesValidationToCompany;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Validation\Rule;
 
 class StoreTransferRequest extends FormRequest
 {
+    use ScopesValidationToCompany;
+
     public function authorize(): bool
     {
         return $this->user()?->can('transfers.create') ?? false;
@@ -21,10 +23,10 @@ class StoreTransferRequest extends FormRequest
     {
         return [
             // `exists` no respeta el borrado lógico; hay que excluirlo a mano.
-            'product_id' => ['required', 'integer', Rule::exists('products', 'id')->whereNull('deleted_at')],
-            'from_warehouse_id' => ['required', 'integer', 'exists:warehouses,id'],
-            'to_warehouse_id' => ['required', 'integer', 'exists:warehouses,id', 'different:from_warehouse_id'],
-            'unit_id' => ['nullable', 'integer', 'exists:units,id'],
+            'product_id' => ['required', 'integer', $this->companyScopedExists('products', 'id')->whereNull('deleted_at')],
+            'from_warehouse_id' => ['required', 'integer', $this->companyScopedExists('warehouses', 'id')],
+            'to_warehouse_id' => ['required', 'integer', $this->companyScopedExists('warehouses', 'id'), 'different:from_warehouse_id'],
+            'unit_id' => ['nullable', 'integer', $this->companyScopedExists('units', 'id')],
             // Las columnas de cantidad son decimal(14,3): por debajo de 0.001 no
             // hay nada representable, y admitir valores menores abriría una
             // rendija entre la validación y el margen de tolerancia interno.

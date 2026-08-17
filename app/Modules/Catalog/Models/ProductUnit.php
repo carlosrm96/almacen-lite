@@ -2,11 +2,14 @@
 
 namespace App\Modules\Catalog\Models;
 
+use App\Modules\Tenancy\Models\Concerns\BelongsToCompany;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class ProductUnit extends Model
 {
+    use BelongsToCompany;
+
     protected $fillable = ['product_id', 'unit_id', 'is_base'];
 
     protected function casts(): array

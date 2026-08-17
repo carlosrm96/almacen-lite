@@ -3,6 +3,7 @@
 namespace App\Modules\Sales\Models;
 
 use App\Models\User;
+use App\Modules\Tenancy\Models\Concerns\BelongsToCompany;
 use App\Modules\Warehouses\Models\Warehouse;
 use Database\Factories\SaleFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -13,7 +14,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class Sale extends Model
 {
     /** @use HasFactory<SaleFactory> */
-    use HasFactory;
+    use BelongsToCompany, HasFactory;
 
     protected $fillable = ['warehouse_id', 'user_id', 'total'];
 
